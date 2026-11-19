@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { Card } from "@/types/database";
 import FieldRow, { SectionLabel } from "./FieldRow";
 import CostPerPersonRow from "./CostPerPersonRow";
+import { toStringList } from "@/lib/cardDetails";
 
 interface Props {
   card: Card;
@@ -18,9 +19,8 @@ export default function SelfDirectedDetail({ card, onSaveDetails, showEmpty = fa
     onSaveDetails ? (v: string) => onSaveDetails(field, v || null) : undefined;
   const hide = !showEmpty;
 
-  const flow: string[] = Array.isArray(d.flow)
-    ? (d.flow as unknown[]).map((item) => typeof item === "string" ? item : String(item))
-    : [];
+  // A flow stored as one string (imported cards) used to hide the plan (19 Nov 2026).
+  const flow: string[] = toStringList(d.flow);
 
   return (
     <div className="space-y-6">

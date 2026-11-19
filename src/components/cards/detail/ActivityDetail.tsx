@@ -2,6 +2,7 @@ import type { Card } from "@/types/database";
 
 import FieldRow from "./FieldRow";
 import CostPerPersonRow from "./CostPerPersonRow";
+import { toStringList } from "@/lib/cardDetails";
 
 // Notes are editable here too (3 Oct 2026): this fallback layout printed them
 // read-only, so a Shopping card's Plan my trip note couldn't be changed on the
@@ -22,13 +23,16 @@ export default function ActivityDetail({ card, onSaveDetails, showEmpty = false 
     duration_minutes?: number;
     goal?: string;
     prep?: string;
-    flow?: Array<{ card?: Card }>;
+    flow?: unknown;
     post?: string;
-    ai_enriched?: { energy_level?: string; tips?: string[] };
+    ai_enriched?: { energy_level?: string; tips?: unknown };
     notes?: string;
   };
-  const flow = d.flow;
+  // flow is a list of step strings, but 21 imported cards stored one string and
+  // this sheet crashed on .map (19 Nov 2026). toStringList accepts either.
+  const flow = toStringList(d.flow);
   const ai = d.ai_enriched;
+  const tips = toStringList(ai?.tips);
 
   return (
     <div className="space-y-6">
@@ -76,34 +80,22 @@ export default function ActivityDetail({ card, onSaveDetails, showEmpty = false 
       )}
 
       {/* Flow — visual timeline */}
-      {flow && flow.length > 0 && (
+      {flow.length > 0 && (
         <div>
           <SectionLabel>The plan</SectionLabel>
           <div className="mt-2 space-y-0">
-            {flow.map((step, i) => {
-              const notes = (step.card?.details as { notes?: string } | null)?.notes;
-              return (
-                <div key={i} className="flex gap-3">
-                  {/* Timeline spine */}
-                  <div className="flex flex-col items-center w-10 flex-shrink-0">
-                    <div className="w-2 h-2 rounded-full bg-activity mt-1.5 z-10 flex-shrink-0" />
-                    {i < flow.length - 1 && (
-                      <div className="w-px flex-1 bg-gray-100 mt-1 mb-0" style={{ minHeight: 24 }} />
-                    )}
-                  </div>
-                  {/* Content */}
-                  <div className="pb-4 flex-1 min-w-0">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-[11px] font-bold text-activity">{step.card?.start_time}</span>
-                    </div>
-                    <p className="text-sm font-semibold text-gray-800 leading-snug mt-0.5">{step.card?.place?.sub_type}</p>
-                    {notes && (
-                      <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{notes}</p>
-                    )}
-                  </div>
+            {flow.map((step, i) => (
+              <div key={i} className="flex gap-3">
+                {/* Timeline spine */}
+                <div className="flex flex-col items-center w-4 flex-shrink-0">
+                  <div className="w-2 h-2 rounded-full bg-activity mt-1.5 z-10 flex-shrink-0" />
+                  {i < flow.length - 1 && (
+                    <div className="w-px flex-1 bg-gray-100 mt-1 mb-0" style={{ minHeight: 16 }} />
+                  )}
                 </div>
-              );
-            })}
+                <p className="pb-3 flex-1 min-w-0 text-sm text-gray-700 leading-relaxed whitespace-pre-line">{step}</p>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -127,7 +119,7 @@ export default function ActivityDetail({ card, onSaveDetails, showEmpty = false 
       )}
 
       {/* Energy + Tips */}
-      {(ai?.energy_level || (ai?.tips && ai.tips.length > 0)) && (
+      {(ai?.energy_level || tips.length > 0) && (
         <div>
           <SectionLabel>Tips</SectionLabel>
           {ai?.energy_level && (
@@ -142,9 +134,9 @@ export default function ActivityDetail({ card, onSaveDetails, showEmpty = false 
               </span>
             </div>
           )}
-          {ai?.tips && (
+          {tips.length > 0 && (
             <ul className="space-y-2">
-              {ai.tips.map((tip, i) => (
+              {tips.map((tip, i) => (
                 <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
                   <span className="text-activity font-bold mt-0.5 flex-shrink-0">·</span>
                   {tip}

@@ -4,6 +4,7 @@ import type { Card } from "@/types/database";
 import FieldRow, { SectionLabel } from "./FieldRow";
 import CostPerPersonRow from "./CostPerPersonRow";
 import ArrayField from "./ArrayField";
+import { toStringList } from "@/lib/cardDetails";
 
 interface Props {
   card: Card;
@@ -23,7 +24,7 @@ export default function EventDetail({ card, onSaveDetails, showEmpty = false }: 
     onSaveDetails ? (v: string) => onSaveDetails(field, v || null) : undefined;
   const hide = !showEmpty;
 
-  const whatToBring: string[] = Array.isArray(d.what_to_bring) ? (d.what_to_bring as string[]) : [];
+  const whatToBring: string[] = toStringList(d.what_to_bring);
   const hasEventData = d.venue || d.gates_open;
 
   return (
