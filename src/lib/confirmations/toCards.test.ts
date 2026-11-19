@@ -114,3 +114,13 @@ describe("a cruise added by hand (17 Nov 2026)", () => {
     expect(closingEvent(cruise, "Viking Mars")).toEqual({ date: "2027-07-30", time: "08:00:00", title: "Leave Viking Mars" });
   });
 });
+
+describe("a car's voucher lines (19 Nov 2026)", () => {
+  it("the reader's car class, pick-up instructions and fuel rule, and the company from the title, land in details", () => {
+    const p = { type: "car_rental" as const, title: "Hertz · Pisa Airport", confirmation_number: "H1", date: "2027-08-25", time: "13:00", end_time: null,
+      address: "Pisa International Airport", phone: null, website: null, notes: null, car_class: "Ford Transit Custom · manual",
+      pickup_instructions: "Car rental building, 5 min walk from arrivals", fuel_policy: "Full to full" };
+    const d = confirmationDetails(p, { title: p.title, notes: "", confirmation: "H1" });
+    expect([d.company, d.car_class, d.pickup_instructions, d.fuel_policy]).toEqual(["Hertz", "Ford Transit Custom · manual", "Car rental building, 5 min walk from arrivals", "Full to full"]);
+  });
+});

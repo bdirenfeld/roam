@@ -37,6 +37,10 @@ export interface ParsedConfirmation {
   drop_off_date?: string | null;
   drop_off_time?: string | null;
   drop_off_location?: string | null;
+  /** Rental cars, the voucher's lines (19 Nov 2026, components/cards/CarVoucher). */
+  car_class?: string | null;
+  pickup_instructions?: string | null;
+  fuel_policy?: string | null;
   /**
    * What the booking cost, as charged (6 Oct 2026): flights, hotels and cars.
    * Once per booking — a round trip carries it on the outbound leg only.
@@ -112,6 +116,11 @@ export function confirmationDetails(p: ParsedConfirmation, edits: { title: strin
   if (p.type === "hotel" && clean(p.check_out_date) && ISO.test(p.check_out_date!.trim())) d.check_out = p.check_out_date!.trim();
   if (p.type === "car_rental") {
     set("drop_off_location", p.drop_off_location);
+    // "Hertz · Pisa Airport" → Hertz: the voucher's company, kept when a placeholder takes the booking.
+    set("company", (p.title ?? "").split(" · ")[0]);
+    set("car_class", p.car_class);
+    set("pickup_instructions", p.pickup_instructions);
+    set("fuel_policy", p.fuel_policy);
     if (clean(p.drop_off_date) && ISO.test(p.drop_off_date!.trim())) d.drop_off = p.drop_off_date!.trim();
   }
   // The price rides on the OPENING card only — the outbound leg, the check-in,

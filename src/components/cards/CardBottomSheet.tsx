@@ -41,6 +41,8 @@ import FlightArrivalDetail from "./detail/FlightArrivalDetail";
 import { FlightPassTop, FlightPassBody, LayoverRow, ConnectingFlight, useTripFlights } from "./FlightPass";
 import { flightPass, isPassFlight } from "@/lib/flights/pass";
 import { flightsInAir, connectionsOf } from "@/lib/week/flightTime";
+import { CarVoucherTop, CarVoucherBody, useTripRentals } from "./CarVoucher";
+import { isRentalCar, rentalVoucher } from "@/lib/cars/voucher";
 import RestaurantDetail from "./detail/RestaurantDetail";
 import SelfDirectedDetail from "./detail/SelfDirectedDetail";
 import GuidedDetail from "./detail/GuidedDetail";
@@ -627,7 +629,12 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   const passOn = flightish && flightSpan?.landing?.id !== localCard.id;
   const passView = passOn ? flightPass(localCard, days?.find((d) => d.id === localCard.day_id)?.date ?? null, flightSpan?.landing?.start_time ?? null) : null;
   const passConn = passOn && days ? connectionsOf(days, flightCards, localCard.id) : null;
-  const noPhoto = legCard || passOn;
+  // The rental voucher (19 Nov 2026, approved mock): a rental car card reads like the voucher, pick-up → drop-off (CarVoucher).
+  const carOn = !legCard && isRentalCar(localCard.place?.sub_type);
+  const tripRentals = useTripRentals(localCard.trip_id, carOn);
+  const dateOfDay = (id: string | null) => days?.find((x) => x.id === id)?.date ?? null;
+  const voucher = carOn ? rentalVoucher(localCard, dateOfDay(localCard.day_id), [...tripRentals.filter((c) => c.id !== localCard.id), localCard].map((c) => ({ card: c, date: dateOfDay(c.day_id) }))) : null;
+  const noPhoto = legCard || passOn || carOn;
   const [renaming, setRenaming] = useState(false);
   // Phone vs desktop (16 Nov 2026): on the phone the ⋯ keeps only what you use
   // on the trip. Move / Repeat / Take off / Rename / Change type stay on desktop.
@@ -1398,7 +1405,10 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 {passView && (
                   <FlightPassTop view={passView} readOnly={readOnly} onSave={(f, v) => void saveDetails(f, v)} />
                 )}
-                {!legCard && !passOn && (
+                {voucher && (
+                  <CarVoucherTop v={voucher} readOnly={readOnly} onSave={(f, v) => void saveDetails(f, v)} />
+                )}
+                {!legCard && !passOn && !carOn && (
                 <button
                   onClick={readOnly ? undefined : () => (place ? setShowSubTypePicker((v) => !v) : setShowNotePicker((v) => !v))}
                   data-testid={place ? undefined : "note-type-button"}
@@ -1567,7 +1577,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   Move and Take-off as header buttons (Sep 2026) and found the
                   row cluttered, so the header keeps its glyphs and the verbs
                   live here. The sheet still closes itself after a move. */}
-              {(canBook || (navApp && place?.address && directionsUrl(otherApp(navApp), navTarget)) || (desktop && (canMove || (legCard && !readOnly))) || (passOn && !readOnly)) && (
+              {(canBook || (navApp && place?.address && directionsUrl(otherApp(navApp), navTarget)) || (desktop && (canMove || (legCard && !readOnly))) || ((passOn || carOn) && !readOnly)) && (
                 <div className={place && !noPhoto ? "relative" : "relative mr-10" /* a note card has the ✕ in this corner: keep the ⋯ clear of it (Brennan, 25 Sep 2026) */}>
                   <button
                     onClick={() => setShowCardMenu((v) => !v)}
@@ -1665,7 +1675,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                           </>
                         )}
                         {/* A boarding-pass flight has no type pill (19 Nov 2026): Change type is here, on the phone too. */}
-                        {passOn && !readOnly && (
+                        {(passOn || carOn) && !readOnly && (
                           <button
                             role="menuitem"
                             onClick={() => { setShowCardMenu(false); setShowSubTypePicker(true); }}
@@ -1707,6 +1717,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 {passConn?.before && <LayoverRow layover={passConn.before} side="before" onOpen={onOpenCard} />}
                 {passConn?.after && <LayoverRow layover={passConn.after} side="after" onOpen={onOpenCard} />}
               </>
+            ) : voucher ? (
+              <CarVoucherBody v={voucher} readOnly={readOnly} onSave={(f, v) => void saveDetails(f, v)}
+                onPatch={(p) => void saveDetailsPatch({ ...(localCard.details as Record<string, unknown>), ...p })} onTime={() => setTimeOpen(true)} />
             ) : legCard && !renaming ? (
               <>
                 {/* Laid out like Google Maps (16 Nov 2026, the mock he liked): the
@@ -1839,7 +1852,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             {/* A hotel has no time chip (17 Nov 2026, Brennan): "3:00 PM – 11:00 AM
                 overnight" read as one evening. Its Check-in / Check-out rows
                 carry both dates and times; the Check-in row opens the time sheet. */}
-            {passOn || key === "logistics/hotel" || key === "logistics/port" ? null : readOnly ? (
+            {passOn || carOn || key === "logistics/hotel" || key === "logistics/port" ? null : readOnly ? (
               /* Static time (guest) — no editable chips */
               localCard.start_time && (
                 <span className="text-sm text-gray-700 font-medium px-2 py-0.5">
@@ -1897,7 +1910,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 range already says it. */}
 
             {/* Overnight warning */}
-            {!passOn && key !== "logistics/hotel" && key !== "logistics/port" && localCard.start_time && localCard.end_time &&
+            {!passOn && !carOn && key !== "logistics/hotel" && key !== "logistics/port" && localCard.start_time && localCard.end_time &&
               toInputTime(localCard.end_time) < toInputTime(localCard.start_time) && (
               <span className="text-[11px] text-amber-500 font-medium ml-0.5">overnight</span>
             )}

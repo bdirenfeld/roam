@@ -39,6 +39,8 @@ export interface NewCard {
 const BOOKING_KEYS = [
   "confirmation", "airline", "flight_number", "origin_airport", "arriving_at", "seat",
   "check_out", "drop_off", "drop_off_location", "paid_total", "paid_currency", "phone", "website",
+  // The rental voucher's (19 Nov 2026).
+  "company", "car_class", "pickup_instructions", "fuel_policy",
 ];
 
 const samePlace = (a: DayCard, b: NewCard) =>
@@ -53,6 +55,11 @@ export function existingFor(card: NewCard, kind: ConfirmationType, dayCards: Day
     const sameKind = on.find((x) => x.place?.sub_type === kind);
     if (sameKind) return sameKind;
   }
+  // A rental car placeholder ("Pick up rental van", not booked) is at a generic desk; the
+  // booking is at Hertz's or Avis's. Any unbooked rental card that day takes it (19 Nov 2026).
+  if (!on.length && kind === "car_rental") {
+    return dayCards.find((x) => x.status === "in_itinerary" && x.place?.sub_type === "car_rental" && x.confirmed !== true) ?? null;
+  }
   return on[0] ?? null;
 }
 
@@ -65,11 +72,14 @@ export function fillFrom(there: DayCard, card: NewCard): { patch: Record<string,
   const details: Record<string, unknown> = { ...(there.details ?? {}) };
   for (const k of BOOKING_KEYS) if (card.details[k] != null && card.details[k] !== "") details[k] = card.details[k];
   delete details.to_book;
-  const patch = {
+  const patch: Record<string, unknown> = {
     confirmed: true,
     start_time: card.start_time ?? there.start_time,
     end_time: card.end_time ?? there.end_time,
     details,
   };
-  return { patch, card: { ...there, ...patch } };
+  // The rental placeholder moves to the booked company's desk (19 Nov 2026).
+  const moved = there.place?.sub_type === "car_rental" && !!card.place_id && card.place_id !== there.place_id;
+  if (moved) patch.place_id = card.place_id;
+  return { patch, card: { ...there, ...patch, ...(moved && card.place ? { place: card.place } : {}) } as DayCard };
 }

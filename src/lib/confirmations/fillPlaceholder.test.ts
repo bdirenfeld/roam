@@ -30,3 +30,28 @@ describe("fillFrom", () => {
     expect(fillFrom(lga({ confirmed: true }), upload).patch).toEqual({ confirmed: true, start_time: "09:20:00", end_time: "12:40:00" });
   });
 });
+
+describe("a rental car placeholder takes the booking (19 Nov 2026)", () => {
+  // The Tuscany van placeholder on Wed 25 Aug; the booking resolves to Hertz's desk at Pisa.
+  const van: DayCard = { id: "v1", place_id: "generic", status: "in_itinerary", confirmed: false, start_time: "12:30:00", end_time: null,
+    details: { title: "Pick up rental van", car_class: "Van for 5 + luggage", drop_off: "2027-09-05" }, place: { sub_type: "car_rental", google_place_id: "g-generic" } };
+  const booking = { place_id: "hertz", start_time: "13:00:00", end_time: null, place: { sub_type: "car_rental", google_place_id: "g-hertz" },
+    details: { title: "Pick up rental car · Hertz · Pisa Airport", company: "Hertz", confirmation: "H123", car_class: "Ford Transit Custom · manual", fuel_policy: "Full to full", paid_total: 612.4, paid_currency: "EUR" } };
+
+  it("a different desk that day still finds the van placeholder", () => {
+    expect(existingFor(booking, "car_rental", [van])?.id).toBe("v1");
+  });
+
+  it("…and takes the company, confirmation, car, fuel, price, time and the booked desk; the van's own title stays", () => {
+    const { patch, card } = fillFrom(van, booking);
+    const d = patch.details as Record<string, unknown>;
+    expect([patch.confirmed, patch.start_time, patch.place_id]).toEqual([true, "13:00:00", "hertz"]);
+    expect([d.company, d.confirmation, d.car_class, d.fuel_policy, d.paid_total, d.title]).toEqual(["Hertz", "H123", "Ford Transit Custom · manual", "Full to full", 612.4, "Pick up rental van"]);
+    expect(card.place?.google_place_id).toBe("g-hertz");
+  });
+
+  it("a booked rental is never taken over, and a hotel booking never lands on the van", () => {
+    expect(existingFor(booking, "car_rental", [{ ...van, confirmed: true }])).toBeNull();
+    expect(existingFor({ ...booking, place: { sub_type: "hotel" } }, "hotel", [van])).toBeNull();
+  });
+});

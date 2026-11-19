@@ -48,7 +48,7 @@ export function useTripFlights(tripId: string | null | undefined, enabled: boole
 }
 
 /** Tap to change, the way the card's fields work today. */
-function PassText({ value, placeholder, onSave, className, style, label }: {
+export function PassText({ value, placeholder, onSave, className, style, label }: {
   value: string | null; placeholder: string; onSave?: (v: string) => void; className?: string; style?: React.CSSProperties; label: string;
 }) {
   const [editing, setEditing] = useState(false);
