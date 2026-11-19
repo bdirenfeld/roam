@@ -2583,3 +2583,11 @@ hidden under the headers).
   (Change type is in the ⋯); FlightArrivalDetail with `pass` keeps only the aircraft. "Land in Sydney" (no airports)
   and the landing card of a two-card flight keep the place layout. Hosts pass `onOpenCard` and key the sheet by card id
   so the layover row can open the other flight.
+- **The rental voucher** (`components/cards/CarVoucher`, `lib/cars/voucher`, 19 Nov 2026): a `car_rental` card shows
+  pick-up → drop-off side by side; the pair is the pick-up (holds `details.drop_off`, `drop_off_location`, the price)
+  and the "Return the rental…" card on that day, same desk. Lines: `car_class`, `pickup_instructions`, `fuel_policy`
+  (the reader returns them) and `company` (from the booking title). An unbooked rental placeholder on the booking's
+  day takes the booking and moves to the booked desk (`fillPlaceholder`). Tuscany's van uses a hand-made place
+  "Pisa Airport car rental" (no Google listing for the shared rental building; the trip's airport place is a flight
+  stop and bulk-import would reuse it).
+- **Dates on the pass/voucher are spelled by hand** (`passDate`): ICU writes "Sept".
