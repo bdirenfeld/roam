@@ -1,9 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import AppHeader from "@/components/ui/AppHeader";
-import { NewJourneyLink } from "@/components/overlays/AppOverlays";
 import TripCard from "@/components/ui/TripCard";
-import FirstJourneyVideo from "@/components/videos/FirstJourneyVideo";
-import FirstRunOpen from "@/components/trips/FirstRunOpen";
+import FirstScreen from "@/components/trips/FirstScreen";
 import PastJourneysList from "@/components/trip/PastJourneysList";
 import type { Trip } from "@/types/database";
 import { fetchAndStoreCover } from "@/lib/unsplash";
@@ -12,7 +10,7 @@ import { headers } from "next/headers";
 import { isPhone } from "@/lib/device";
 import { tripHref } from "@/lib/tripHref";
 import { belongsInPastJourneys, isPastJourney } from "@/lib/tripRecency";
-import { createSampleJourney } from "@/lib/sampleTrip/actions";
+import { onlySample } from "@/lib/sampleTrip/plan";
 import YearView from "@/components/trips/YearView";
 import { FAMILY_DATES } from "@/lib/yearView/familyDates";
 import { isHouseholdOwner } from "@/lib/household";
@@ -26,7 +24,7 @@ export default async function TripsPage() {
   const user = await getAuthUser(supabase);
 
   const [{ data: profile }, { data: rawTrips }, { data: allDays }] = await Promise.all([
-    supabase.from("users").select("avatar_url").eq("id", user?.id ?? "").single(),
+    supabase.from("users").select("avatar_url, has_paid").eq("id", user?.id ?? "").single(),
     supabase
       .from("trips")
       .select("*")
@@ -91,6 +89,9 @@ export default async function TripsPage() {
   const past = trips?.filter((t: Trip) => !t.archived && isPastJourney(t)) ?? [];
   const archivedTrips = trips?.filter((t: Trip) => t.archived === true) ?? [];
 
+  // Until there is a journey besides the example, the first screen shows.
+  const firstSample: Trip | null = (trips ?? []).find((t: Trip) => t.user_id === user?.id) ?? null;
+
   // The year strip only means anything once a journey has real dates.
   const hasDatedTrips = (trips ?? []).some((t: Trip) => t.start_date && t.end_date);
 
@@ -109,7 +110,7 @@ export default async function TripsPage() {
             journey's cover with nothing between them. Desktop already had its
             own air from md:pt-10 above. */}
         <div className="px-4 pt-3 pb-6 md:px-0 md:pt-0 md:pb-0 md:mt-2">
-          {trips && trips.length > 0 ? (
+          {trips && !onlySample(trips) ? (
             <>
               {/* Upcoming — stacked on mobile, 2-up grid on desktop */}
               {upcoming.length > 0 && (
@@ -167,57 +168,10 @@ export default async function TripsPage() {
               )}
             </>
           ) : (
-            <EmptyState />
-          )}
-          {/* Dev-only: the sample-trip button normally lives in EmptyState,
-              which an account with journeys never sees. This mirror makes the
-              flow testable locally. Stripped from production builds. */}
-          {process.env.NODE_ENV === "development" && (
-            <form action={createSampleJourney} className="mt-10 text-center">
-              <button
-                type="submit"
-                className="text-[12px] text-gray-300 underline underline-offset-2 hover:text-gray-500 transition-colors"
-              >
-                Create the sample journey (dev only)
-              </button>
-            </form>
+            <FirstScreen sample={firstSample} sampleHref={firstSample ? hrefByTrip[firstSample.id] : undefined} free={!profile?.has_paid} />
           )}
         </div>
       </div>
-    </div>
-  );
-}
-
-function EmptyState() {
-  return (
-    <div className="flex flex-col items-center justify-center py-16 text-center">
-      {/* First sign-in: the Plan a journey form opens itself (10 Oct 2026). */}
-      <FirstRunOpen />
-      {/* Video 1 takes the pin tile's place once it is switched on (2 Oct 2026). */}
-      <FirstJourneyVideo />
-      <p className="text-sm font-semibold text-gray-700">No journeys yet</p>
-      <p className="text-xs text-gray-400 mt-1 mb-5 max-w-[220px]">
-        Plan one, or open the link someone sent you.
-      </p>
-      {/* Opens the form in place rather than routing away; still a link to
-          /trips/new so ctrl/cmd-click opens the page. */}
-      <NewJourneyLink className="inline-flex items-center gap-2 bg-activity text-white text-sm font-semibold px-5 py-2.5 rounded-xl shadow-sm hover:opacity-90 active:scale-95 transition-all">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-          <line x1="12" y1="5" x2="12" y2="19" />
-          <line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
-        Plan a journey
-      </NewJourneyLink>
-      {/* One-tap sample journey — shows what a finished trip looks like.
-          Clearly named, fully deletable; see src/lib/sampleTrip. */}
-      <form action={createSampleJourney} className="mt-3">
-        <button
-          type="submit"
-          className="text-[13px] text-gray-400 underline underline-offset-2 hover:text-gray-600 transition-colors"
-        >
-          or try a sample journey first
-        </button>
-      </form>
     </div>
   );
 }

@@ -2468,9 +2468,11 @@ Four commits (bbf019a, f532668, cb36b20, 614cef0) opened the journey map in plac
   public New York page a stranger can read without an account) live in `landingAtoms.tsx`.
   Tagline "The whole trip, in one place." (his "amazing"); subhead is his Instagram bio line;
   "Free. No card." under every Google button. Keep the words matching the bio.
-- First sign-in: `components/trips/FirstRunOpen.tsx` opens the Plan a journey overlay once per
-  browser session when the account has no journeys (sessionStorage `roam:first-run-form-opened`).
-  The Journeys page is still the signed-in landing (26 Sep ruling); this only opens the form over it.
+- First sign-in (24 Nov 2026, replaced the self-opening form): `components/trips/FirstScreen.tsx`, shown
+  until there is a journey besides the example (`onlySample`): Plan a journey beside an "Example" tile.
+  The example (`lib/sampleTrip`, Paris and Normandy, 8 days) is built only when tapped, then is a normal
+  card. `plan.ts` is pure and tested; dates are the first Thursday of the next June (closed days).
+  SAMPLE_TITLE is matched by the paywall trigger; SAMPLE_NAME is what the card shows.
 - Funnel counting is in Clarity, not Vercel (Web Analytics is off; his dashboard toggle).
   `lib/funnel.ts`: `funnelEvent` (landing_view, landing_demo, signin_google, signin_email,
   trip_created) and a `source` tag from `utm_source`. Silent when Clarity isn't loaded. Add a

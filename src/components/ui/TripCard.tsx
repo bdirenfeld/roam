@@ -16,6 +16,7 @@ import Pieces from "./Pieces";
 import JourneyMenu from "./JourneyMenu";
 import CopyJourneySheet from "@/components/trip/CopyJourneySheet";
 import type { Trip } from "@/types/database";
+import { SAMPLE_NAME, SAMPLE_TITLE } from "@/lib/sampleTrip/itinerary";
 import { useTripSettings } from "@/components/overlays/AppOverlays";
 
 interface Props {
@@ -65,6 +66,7 @@ export default function TripCard({ trip, href, owner = false }: Props) {
   useEffect(() => {
     setCountdown(tripCountdown(trip.start_date, trip.end_date, localDate(new Date())));
   }, [trip.start_date, trip.end_date]);
+  const isSample = trip.title === SAMPLE_TITLE;
   const caption = formatDateCompact(trip.start_date, trip.end_date);
 
   const { toast } = useToast();
@@ -129,9 +131,11 @@ export default function TripCard({ trip, href, owner = false }: Props) {
                 }}
               />
 
+              {isSample && <span className="absolute top-3 left-3 rounded-full bg-white px-3 py-1 text-[13px] font-semibold text-activity">Example</span>}
+
               <div className="absolute inset-x-0 bottom-0 px-4 pb-3.5">
                 <h3 className="text-[19px] md:text-xl font-normal text-white leading-snug">
-                  {trip.title}
+                  {isSample ? SAMPLE_NAME : trip.title}
                 </h3>
                 <p
                   className="text-[10.5px] tracking-widest uppercase mt-0.5"

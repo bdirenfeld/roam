@@ -12,7 +12,7 @@ import { fileUrl, forSurface, posterUrl, videoById } from "@/lib/videos/howTo";
 import VideoPlayer from "./VideoPlayer";
 import { PlayDisc } from "./VideosSheet";
 
-export default function FirstJourneyVideo() {
+export default function FirstJourneyVideo({ fallback = true }: { fallback?: boolean }) {
   const { ready, available, seen, markSeen } = useHowToVideos();
   const [playing, setPlaying] = useState(false);
   const id = ready ? forSurface("journeys-empty", available, seen) : null;
@@ -39,7 +39,7 @@ export default function FirstJourneyVideo() {
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#1A1A2E" strokeWidth="2.4" strokeLinecap="round" aria-hidden><path d="M6 6l12 12M18 6L6 18" /></svg>
           </button>
         </div>
-      ) : (
+      ) : !fallback ? null : (
         <div className="w-16 h-16 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center mb-4">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="1.5" strokeLinecap="round">
             <circle cx="12" cy="10" r="3" />
