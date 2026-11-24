@@ -93,9 +93,14 @@ export default function CopyJourneySheet({ trip, onClose, onCopied, today }: {
           includeSaved: bringSaved && (saved ?? 0) > 0,
         }),
       });
-      const j = (await r.json().catch(() => ({}))) as { tripId?: string; firstDayId?: string | null; counts?: { days: number; places: number }; error?: string };
+      const j = (await r.json().catch(() => ({}))) as { tripId?: string; firstDayId?: string | null; counts?: { days: number; places: number }; error?: string; paywall?: boolean };
       if (!r.ok || !j.tripId) {
         setSaving(false);
+        // A copy is a new journey, so the paywall applies (lib/paywall/allowance).
+        if (j.paywall) {
+          toast({ message: j.error ?? "Your first journey is free.", duration: 8000, action: { label: "Unlock", onClick: () => { window.location.href = "/checkout"; } } });
+          return;
+        }
         toast({ message: j.error ?? "Couldn't copy this journey. Try again." });
         return;
       }

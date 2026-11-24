@@ -54,11 +54,11 @@ export async function updateSession(request: NextRequest) {
   // '/journey/' prefix match — NOT a bare '/journey' that could catch a future
   // '/journeys' — exempts it from the auth bounce.
   //
-  // NOTE (Sept 2026): earlier comments here described a has_paid gate "below".
-  // There is none. `has_paid` is written by the Stripe webhook and read only
-  // by /checkout; nothing requires payment to use the app. Signing in is the
-  // only gate. Left as-is deliberately — whether Roam is free is Brennan's
-  // call, not a bug to fix in passing.
+  // Payment is NOT gated here (24 Nov 2026). Signing in is this file's only
+  // gate. The paywall is per journey: the first is free, and the database
+  // trigger on `trips` refuses a second until `has_paid` (lib/paywall/allowance,
+  // migration 021). Every page stays reachable, including a paid-for journey's
+  // guests, who never pay.
   // `/guide.html` is the static quick-start guide in /public — linked from the
   // landing page and sent to people who can't log in yet, so it must be public.
   // `/sw.js` + `/offline.html` power offline mode and must load without auth,

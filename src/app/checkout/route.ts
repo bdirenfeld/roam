@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getStripe } from "@/lib/stripe/server";
+import { PRICE_CENTS, PRODUCT_NAME } from "@/lib/paywall/allowance";
 
 // Creates a Stripe Checkout session for the signed-in user and 303-redirects
-// to Stripe-hosted Checkout. Reached either via the middleware payment gate
-// or the cancel page's "try again" link.
+// to Stripe-hosted Checkout. Reached from the paywall on Plan a journey
+// (components/trip/JourneyPaywall) or the cancel page's "try again" link.
 export async function GET(request: Request) {
   const { origin } = new URL(request.url);
   const supabase = await createClient();
@@ -40,14 +41,17 @@ export async function GET(request: Request) {
         quantity: 1,
         price_data: {
           currency: "usd",
-          unit_amount: 1000,
+          unit_amount: PRICE_CENTS,
           product_data: {
-            name: "Roam — early access",
+            name: PRODUCT_NAME,
           },
         },
       },
     ],
-    success_url: `${origin}/trips`,
+    // /checkout/success confirms the payment with Stripe and marks the account
+    // paid before the traveller lands, so they never beat the webhook back to
+    // a paywall they just paid for. {CHECKOUT_SESSION_ID} is Stripe's template.
+    success_url: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/checkout/cancelled`,
   });
 

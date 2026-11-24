@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PRICE_LABEL } from "@/lib/paywall/allowance";
 
 const INK = "#1A1A2E";
 const PARCHMENT = "#F5F4F1";
@@ -53,13 +54,14 @@ export default function CheckoutCancelledPage() {
             color: "rgba(26, 26, 46, 0.65)",
           }}
         >
-          Early access requires a one-time payment. Continue when you&apos;re ready.
+          Your first journey is free. Every journey after it is {PRICE_LABEL}, once. Continue when you&apos;re ready.
         </p>
       </div>
 
       <div style={{ margin: "0 24px" }}>
         <Link
           href="/checkout"
+          prefetch={false}
           className="font-sans"
           style={{
             display: "flex",
@@ -76,6 +78,9 @@ export default function CheckoutCancelledPage() {
           }}
         >
           Continue to payment
+        </Link>
+        <Link href="/trips" className="font-sans" style={{ display: "flex", minHeight: "44px", alignItems: "center", justifyContent: "center", marginTop: "8px", fontSize: "14px", color: "rgba(26, 26, 46, 0.65)" }}>
+          Back to my journeys
         </Link>
       </div>
     </main>

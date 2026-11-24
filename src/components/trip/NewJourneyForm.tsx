@@ -36,6 +36,8 @@ import PartyPicker from "@/components/trip/PartyPicker";
 import { partyFrom, agesFrom, ageForward, partySize as sizeOf, type Party } from "@/lib/party";
 import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
 import { tripDates } from "@/lib/tripDates";
+import { canCreateJourney, isPaymentRequired } from "@/lib/paywall/allowance";
+import JourneyPaywall from "@/components/trip/JourneyPaywall";
 
 const UNSPLASH_KEY = process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY;
 
@@ -221,6 +223,28 @@ export default function NewJourneyForm({
   }, [lastParty, startDate]);
   const [saving,        setSaving]        = useState(false);
   const [saveError,     setSaveError]     = useState<string | null>(null);
+
+  // The paywall (lib/paywall/allowance): the first journey is free. Checked
+  // as the form opens so nobody fills it in to be refused at the end; the
+  // database trigger is the real gate, and its refusal lands here too. The
+  // practice journey (demo) writes to an isolated store and is never gated.
+  const [locked, setLocked] = useState(false);
+  useEffect(() => {
+    if (practiceDestinations) return;
+    let cancelled = false;
+    (async () => {
+      const supabase = createClient();
+      const user = await getAuthUser(supabase).catch(() => null);
+      if (!user) return;
+      const [{ data: profile }, { data: owned }] = await Promise.all([
+        supabase.from("users").select("has_paid").eq("id", user.id).maybeSingle(),
+        supabase.from("trips").select("title").eq("user_id", user.id),
+      ]);
+      const paid = (profile as { has_paid?: boolean | null } | null)?.has_paid;
+      if (!cancelled && owned && !canCreateJourney(paid, owned as { title: string | null }[])) setLocked(true);
+    })();
+    return () => { cancelled = true; };
+  }, [practiceDestinations]);
 
   // Date picker state — the calendar opens on the seeded start month when
   // dates were handed over, otherwise on the current month
@@ -612,6 +636,7 @@ export default function NewJourneyForm({
 
     if (tripErr) {
       setSaving(false);
+      if (isPaymentRequired(tripErr)) { setLocked(true); return; }
       setSaveError("Couldn't create journey — please try again.");
       return;
     }
@@ -717,6 +742,9 @@ export default function NewJourneyForm({
             : "md:max-w-[620px] md:mx-auto md:my-8 md:rounded-2xl md:border md:border-black/[0.07] md:shadow-[0_1px_2px_rgba(26,26,46,0.04)] md:overflow-hidden",
         ].join(" ")}
       >
+
+        {locked && <JourneyPaywall onDismiss={dismiss} />}
+        <div className={locked ? "hidden" : undefined}>
 
         {/* No cover step (3 Oct 2026, Brennan): one is fetched for the destination
             automatically, and it can be changed in the journey's settings. */}
@@ -893,6 +921,7 @@ export default function NewJourneyForm({
           </button>
         </div>
 
+        </div>
       </div>
 
       {/* Date range picker sheet */}

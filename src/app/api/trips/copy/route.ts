@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/api/guard";
 import { deleteJourney } from "@/lib/deleteJourney";
 import { copyJourney, type CopyCardRow, type CopyDayRow, type CopyTripRow } from "@/lib/trips/copyJourney";
+import { isPaymentRequired, PRICE_LABEL } from "@/lib/paywall/allowance";
 
 /**
  * Copy to new dates (7 Oct 2026, mock t07). Runs as the signed-in person, so
@@ -50,6 +51,10 @@ export async function POST(request: NextRequest) {
 
   const { error: tripErr } = await supabase.from("trips").insert(out.trip);
   if (tripErr) {
+    // The paywall trigger (lib/paywall/allowance): a copy is a new journey.
+    if (isPaymentRequired(tripErr)) {
+      return NextResponse.json({ error: `Your first journey is free. Unlock more for ${PRICE_LABEL}.`, paywall: true }, { status: 402 });
+    }
     console.error("[copy] trip refused:", tripErr.message);
     return NextResponse.json({ error: "Couldn't copy this journey. Try again." }, { status: 500 });
   }

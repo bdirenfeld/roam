@@ -482,9 +482,19 @@ open on a DB error and logs. Five routes had no sign-in check before this.
   (32 places) that the column had forgotten and that were paid for again. PostgREST
   compares jsonb by value, so `.eq("photo_cache", JSON.stringify(old))` works.
 - `/api/embed` follows short links outbound, so it is signed-in + quota'd.
-- THERE IS NO PAYWALL. `has_paid` is written by the Stripe webhook and read only
-  by `/checkout`; the middleware gates on sign-in alone. Older comments claimed
-  a gate that never existed. Do not add one without Brennan asking.
+- THE PAYWALL (Brennan asked, 24 Nov 2026): the first journey is free, then a
+  one-time $5 unlocks every journey. Rule and numbers live in
+  `src/lib/paywall/allowance.ts`; the real gate is the BEFORE INSERT trigger on
+  `trips` (migration 021), which raises `PAYMENT_REQUIRED` for an unpaid owner
+  with one journey already (sample journey excluded, service role exempt).
+  `allowance.test.ts` reads the migration so the two cannot drift. Plan a
+  journey checks up front and shows `JourneyPaywall`; copy-a-journey returns 402
+  with `paywall: true`. Guests on someone else's journey never pay. `has_paid`
+  is set by the webhook AND by `/checkout/success` (which asks Stripe about the
+  session so the traveller never beats the webhook back to the paywall). Only
+  the service role can write `has_paid` (migration 015). The middleware still
+  gates on sign-in alone. Link to `/checkout` with `<a>` or `prefetch={false}`:
+  it is a route handler that creates a Stripe session on every GET.
 
 ## What renders must never depend on `window`
 
