@@ -11,8 +11,12 @@
 /** Journeys a traveller can own before paying. */
 export const FREE_JOURNEYS = 1;
 
-/** The one-time price, in cents (USD, Stripe's currency for the checkout). */
+/** The one-time price, in cents of PRICE_CURRENCY. */
 export const PRICE_CENTS = 500;
+
+/** Checkout currency. CAD because the Stripe account settles and pays out in
+ *  CAD, so a USD charge would lose ~2% to conversion (Brennan, 24 Nov 2026). */
+export const PRICE_CURRENCY = "cad";
 
 /** "$5", for copy. Whole dollars drop the cents. */
 export const PRICE_LABEL = `$${PRICE_CENTS % 100 === 0 ? PRICE_CENTS / 100 : (PRICE_CENTS / 100).toFixed(2)}`;

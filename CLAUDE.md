@@ -483,7 +483,8 @@ open on a DB error and logs. Five routes had no sign-in check before this.
   compares jsonb by value, so `.eq("photo_cache", JSON.stringify(old))` works.
 - `/api/embed` follows short links outbound, so it is signed-in + quota'd.
 - THE PAYWALL (Brennan asked, 24 Nov 2026): the first journey is free, then a
-  one-time $5 unlocks every journey. Rule and numbers live in
+  one-time C$5 unlocks every journey (CAD: Stripe pays out in CAD; live Stripe
+  account activated 24 Nov 2026, webhook `roam-live-checkout`). Rule and numbers live in
   `src/lib/paywall/allowance.ts`; the real gate is the BEFORE INSERT trigger on
   `trips` (migration 021), which raises `PAYMENT_REQUIRED` for an unpaid owner
   with one journey already (sample journey excluded, service role exempt).

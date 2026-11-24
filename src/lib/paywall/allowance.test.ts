@@ -3,15 +3,22 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { SAMPLE_TITLE } from "@/lib/sampleTrip/itinerary";
 import {
-  FREE_JOURNEYS, PRICE_CENTS, PRICE_LABEL, PAYMENT_REQUIRED,
+  FREE_JOURNEYS, PRICE_CENTS, PRICE_CURRENCY, PRICE_LABEL, PAYMENT_REQUIRED,
   canCreateJourney, countedJourneys, isPaymentRequired,
 } from "./allowance";
 
 describe("the journey allowance", () => {
-  it("is one free journey at $5", () => {
+  it("is one free journey at C$5", () => {
     expect(FREE_JOURNEYS).toBe(1);
     expect(PRICE_CENTS).toBe(500);
+    expect(PRICE_CURRENCY).toBe("cad");
     expect(PRICE_LABEL).toBe("$5");
+  });
+
+  it("checkout charges in PRICE_CURRENCY, never a hard-coded currency", () => {
+    const route = readFileSync(join(process.cwd(), "src/app/checkout/route.ts"), "utf8");
+    expect(route).toContain("currency: PRICE_CURRENCY");
+    expect(route).not.toMatch(/currency:\s*["']/);
   });
 
   it("lets a new traveller make their first journey", () => {

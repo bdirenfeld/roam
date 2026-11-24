@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getStripe } from "@/lib/stripe/server";
-import { PRICE_CENTS, PRODUCT_NAME } from "@/lib/paywall/allowance";
+import { PRICE_CENTS, PRICE_CURRENCY, PRODUCT_NAME } from "@/lib/paywall/allowance";
 
 // Creates a Stripe Checkout session for the signed-in user and 303-redirects
 // to Stripe-hosted Checkout. Reached from the paywall on Plan a journey
@@ -40,7 +40,7 @@ export async function GET(request: Request) {
       {
         quantity: 1,
         price_data: {
-          currency: "usd",
+          currency: PRICE_CURRENCY,
           unit_amount: PRICE_CENTS,
           product_data: {
             name: PRODUCT_NAME,
