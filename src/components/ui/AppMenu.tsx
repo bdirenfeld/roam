@@ -11,6 +11,7 @@ import {
 import HelpSheet from "@/components/help/HelpSheet";
 import HelpDot from "@/components/help/HelpDot";
 import { useHelpUnread } from "@/lib/help/unread";
+import { isLandingDemoPath } from "@/lib/landingDemoClient";
 import {
   EstimateLink,
   TripSettingsLink,
@@ -92,7 +93,10 @@ export default function AppMenu({
   // 64px each, under the disc where the thumb already is — half the height
   // of six rows. A bottom sheet was mocked and rejected: the trigger is
   // top-right, so the menu must open there, not make the thumb travel.
-  const ownerItems = tripId ? (guest ? 1 : 3) + (extra?.length ?? 0) + 1 : 1;
+  // The public sample has no account, videos or walkthroughs: Help would open empty.
+  // Read only while open, so the server and the first render agree.
+  const sample = open && isLandingDemoPath(window.location.pathname);
+  const ownerItems = tripId ? (guest ? 1 : 3) + (extra?.length ?? 0) + (sample ? 0 : 1) : 1;
   const tileCols = Math.min(3, Math.max(1, ownerItems));
 
   // Tiles on the desktop too (Brennan, 25 Sep 2026): the same two rows.
@@ -268,6 +272,7 @@ export default function AppMenu({
               {/* Help (24 Nov 2026, his yes to the mock): Videos and Walkthrough were
                   two tiles; they are rows in the Help sheet now, under the box
                   that writes to Brennan. Six tiles become five. */}
+              {!sample && (
               <button
                 role="menuitem"
                 aria-label={unread ? "Help, new reply" : "Help"}
@@ -280,6 +285,7 @@ export default function AppMenu({
                 </span>
                 <Label title="Help" />
               </button>
+              )}
             </>
           )}
 

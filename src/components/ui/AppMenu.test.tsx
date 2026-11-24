@@ -57,6 +57,15 @@ describe("the journey menu", () => {
     vids.available = {};
   });
 
+  it("the public sample has no Help: nothing would be in it", () => {
+    history.replaceState({}, "", "/demo");
+    expect(rows(false)).toEqual(["Budget", "Notes", "Bookings", "Settings"]);
+    cleanup();
+    history.replaceState({}, "", "/trips/real");
+    expect(rows(false)).toContain("Help");
+    history.replaceState({}, "", "/");
+  });
+
   it("Settings wears a gear, matching its word (13 Oct 2026)", () => {
     rows(false);
     const settings = screen.getAllByRole("menuitem").find((el) => el.textContent?.trim() === "Settings")!;
