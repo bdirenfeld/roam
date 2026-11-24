@@ -26,7 +26,7 @@ vi.mock("@/components/overlays/AppOverlays", () => {
 // run for minutes. The rows are what is being tested, not the glyphs.
 vi.mock("@phosphor-icons/react", () => {
   const Glyph = () => null;
-  return { Coins: Glyph, DotsThree: Glyph, Gear: () => <i data-icon="gear" />, NotePencil: Glyph, ShareNetwork: Glyph, Lightbulb: Glyph, Bed: Glyph, PlayCircle: Glyph, HandPointing: Glyph };
+  return { Coins: Glyph, DotsThree: Glyph, Gear: () => <i data-icon="gear" />, NotePencil: Glyph, ShareNetwork: Glyph, Lightbulb: Glyph, Bed: Glyph, Question: Glyph };
 });
 
 const vids = vi.hoisted(() => ({ available: {} as Record<string, number>, markSeen: () => {} }));
@@ -49,34 +49,12 @@ function rows(guest: boolean) {
 }
 
 describe("the journey menu", () => {
-  it.each(['mobile', 'desktop'] as const)('Walkthrough picks up a walkthrough under way and closes the %s menu', variant => {
-    const resume = vi.fn(); const restart = vi.fn();
-    render(<JourneyGuidanceContext.Provider value={{ resume, restart, resumable: true }}><AppMenu variant={variant} tripId="t1" triggerClassName="" /></JourneyGuidanceContext.Provider>);
-    fireEvent.click(screen.getByLabelText('More options'));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Continue walkthrough' }));
-    expect(resume).toHaveBeenCalledTimes(1);
-    expect(restart).not.toHaveBeenCalled();
-    expect(screen.queryByRole('menu')).toBeNull();
-  });
-  it('Walkthrough starts from the beginning when nothing is under way (never started, or finished)', () => {
-    const resume = vi.fn(); const restart = vi.fn();
-    render(<JourneyGuidanceContext.Provider value={{ resume, restart, resumable: false }}><AppMenu variant="mobile" tripId="t1" triggerClassName="" /></JourneyGuidanceContext.Provider>);
-    fireEvent.click(screen.getByLabelText('More options'));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Start walkthrough' }));
-    expect(restart).toHaveBeenCalledTimes(1);
-    expect(resume).not.toHaveBeenCalled();
-  });
-  it('is one tile in the sixth slot, after Videos — not a list (13 Oct 2026)', () => {
-    vids.available = { 'first-journey': 1 };
+  it("is five tiles for the owner: Videos and Walkthrough live inside Help (24 Nov 2026)", () => {
+    vids.available = { "first-journey": 1 };
     render(<JourneyGuidanceContext.Provider value={{ resume: () => {}, restart: () => {}, resumable: true }}><AppMenu variant="mobile" tripId="t1" extra={bookings} triggerClassName="" /></JourneyGuidanceContext.Provider>);
-    fireEvent.click(screen.getByLabelText('More options'));
-    expect(screen.getAllByRole('menuitem').map(el => el.textContent?.trim())).toEqual(['Budget', 'Notes', 'Bookings', 'Settings', 'Videos', 'Walkthrough']);
-    expect(screen.queryByText('Start again')).toBeNull();
+    fireEvent.click(screen.getByLabelText("More options"));
+    expect(screen.getAllByRole("menuitem").map((el) => el.textContent?.trim())).toEqual(["Budget", "Notes", "Bookings", "Settings", "Help"]);
     vids.available = {};
-  });
-  it("is four tiles for the owner, Share and Settings as one, phone-short words", () => {
-    const r = rows(false);
-    expect(r).toEqual(["Budget", "Notes", "Bookings", "Settings"]);
   });
 
   it("Settings wears a gear, matching its word (13 Oct 2026)", () => {
@@ -85,43 +63,27 @@ describe("the journey menu", () => {
     expect(settings.querySelector('[data-icon="gear"]')).not.toBeNull();
   });
 
-  it("is Notes and Bookings for a guest — no planner's Ideas", () => {
-    expect(rows(true)).toEqual(["Notes", "Bookings"]);
+  it("is Notes, Bookings and Help for a guest — no planner's Ideas", () => {
+    expect(rows(true)).toEqual(["Notes", "Bookings", "Help"]);
   });
 
   it("has no Stay tile: Where to stay opens from the Stays row of To book in Bookings (6 Oct 2026)", () => {
     expect(rows(false)).not.toContain("Stay");
     expect(screen.queryByRole("menuitem", { name: "Where to stay" })).toBeNull();
   });
-});
 
-describe("Videos in the journey menu (2 Oct 2026, video-placement-mock §5)", () => {
-  afterEach(() => { vids.available = {}; });
-
-  it("no video switched on yet: no tile", () => {
-    expect(rows(false)).not.toContain("Videos");
-  });
-
-  it("a sixth tile for the owner, and a third for a guest", () => {
-    vids.available = { "first-journey": 1 };
-    expect(rows(false)).toEqual(["Budget", "Notes", "Bookings", "Settings", "Videos"]);
-    cleanup();
-    expect(rows(true)).toEqual(["Notes", "Bookings", "Videos"]);
-  });
-
-  it("opens a white sheet listing only what is switched on; a row plays full screen", () => {
-    vids.available = { "first-journey": 1, "on-the-trip": 3 };
-    rows(false);
-    fireEvent.click(screen.getByRole("menuitem", { name: "How-to videos" }));
-    const sheet = screen.getByRole("dialog", { name: "How-to videos" });
-    const listed = Array.from(sheet.querySelectorAll("button")).map((b) => b.textContent).filter((t) => t);
-    expect(listed).toEqual(["Your first journey1 min", "Following along: during the trip45 s"]);
+  it.each(["mobile", "desktop"] as const)("Help opens the sheet and closes the %s menu; a reply waiting shows on both", async (variant) => {
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ messages: [] }) })));
+    const { setHelpUnread } = await import("@/lib/help/unread");
+    setHelpUnread(1);
+    render(<AppMenu variant={variant} tripId="t1" triggerClassName="" />);
+    expect(screen.getAllByTestId("help-dot").length).toBe(1);
+    fireEvent.click(screen.getByLabelText("More options"));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Help, new reply" }));
     expect(screen.queryByRole("menu")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /during the trip/ }));
-    const video = screen.getByTestId("video-player").querySelector("video")!;
-    expect(video.getAttribute("src")).toContain("/how-to-videos/on-the-trip.mp4?v=3");
-    fireEvent.click(screen.getByRole("button", { name: "Close video" }));
-    expect(screen.queryByTestId("video-player")).toBeNull();
-    expect(screen.getByRole("dialog", { name: "How-to videos" })).toBeTruthy();
+    expect(screen.getByRole("dialog", { name: "Help" })).toBeTruthy();
+    await screen.findByPlaceholderText(/wrong, missing, or good/);
+    setHelpUnread(0);
+    vi.unstubAllGlobals();
   });
 });

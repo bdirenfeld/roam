@@ -7,6 +7,8 @@ import { usePathname } from "next/navigation";
 import { UserCircle, Plus, Files } from "@phosphor-icons/react";
 import SharedWithFaces from "@/components/trip/SharedWithFaces";
 import AppMenu from "@/components/ui/AppMenu";
+import HelpDot from "@/components/help/HelpDot";
+import { openHelp } from "@/lib/help/unread";
 import {
   NewJourneyLink,
   ProfileLink,
@@ -426,6 +428,7 @@ export default function DesktopMasthead({ previewPath }: { previewPath?: string 
           ) : (
             <UserCircle size={30} weight="light" />
           )}
+          <HelpDot className="-top-0.5 -right-0.5" />
         </button>
 
         {open && (
@@ -494,6 +497,14 @@ export default function DesktopMasthead({ previewPath }: { previewPath?: string 
               Profile
             </ProfileLink>
             {/* "How Roam works" moved to the always-visible "?" in the masthead */}
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => { setOpen(false); openHelp(); }}
+              style={{ display: "block", width: "100%", textAlign: "left", padding: "11px 16px", fontSize: 13, color: INK, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}
+            >
+              Message us
+            </button>
             <form action={signOut}>
               <button
                 type="submit"

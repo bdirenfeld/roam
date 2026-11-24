@@ -6,13 +6,11 @@ import {
   DotsThree,
   NotePencil,
   Gear,
-  PlayCircle,
-  HandPointing,
+  Question,
 } from "@phosphor-icons/react";
-import VideosSheet from "@/components/videos/VideosSheet";
-import { useJourneyGuidance } from "@/components/onboarding/JourneyGuidanceContext";
-import { useHowToVideos } from "@/hooks/useHowToVideos";
-import { listed, deviceOf } from "@/lib/videos/howTo";
+import HelpSheet from "@/components/help/HelpSheet";
+import HelpDot from "@/components/help/HelpDot";
+import { useHelpUnread } from "@/lib/help/unread";
 import {
   EstimateLink,
   TripSettingsLink,
@@ -73,14 +71,8 @@ export default function AppMenu({
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const notes = useJourneyNotes();
-  const guidance = useJourneyGuidance();
-  // How-to videos (2 Oct 2026, video-placement-mock §5, his yes): a sixth tile
-  // for anyone signed in, filling the second row. Shown once at least one
-  // video is switched on (videos.json in the how-to-videos bucket).
-  const [videosOpen, setVideosOpen] = useState(false);
-  const { available } = useHowToVideos();
-  const hasVideos = !!tripId && listed(available, typeof navigator === "undefined" ? "computer" : deviceOf(navigator.userAgent)).length > 0;
-
+  const [helpOpen, setHelpOpen] = useState(false);
+  const unread = useHelpUnread();
   useEffect(() => {
     if (!open) return;
     const onDown = (e: PointerEvent) => {
@@ -100,7 +92,7 @@ export default function AppMenu({
   // 64px each, under the disc where the thumb already is — half the height
   // of six rows. A bottom sheet was mocked and rejected: the trigger is
   // top-right, so the menu must open there, not make the thumb travel.
-  const ownerItems = tripId ? (guest ? 1 : 3) + (extra?.length ?? 0) + (hasVideos ? 1 : 0) + (guidance && !guest ? 1 : 0) : 1;
+  const ownerItems = tripId ? (guest ? 1 : 3) + (extra?.length ?? 0) + 1 : 1;
   const tileCols = Math.min(3, Math.max(1, ownerItems));
 
   // Tiles on the desktop too (Brennan, 25 Sep 2026): the same two rows.
@@ -159,7 +151,7 @@ export default function AppMenu({
         aria-expanded={open}
       >
         {targetClassName && <span aria-hidden="true" data-testid="menu-target" className={targetClassName} />}
-        <DotsThree size={mobile ? 20 : 18} weight={mobile ? "light" : "bold"} />
+        <span className="relative"><DotsThree size={mobile ? 20 : 18} weight={mobile ? "light" : "bold"} /><HelpDot className="-top-1 -right-1" /></span>
       </button>
 
       {/* Solid white, no blur (24 Sep 2026): the old bg-white/97 was not a
@@ -273,46 +265,28 @@ export default function AppMenu({
                 </TripSettingsLink>
               )}
 
-              {hasVideos && (
-                <button
-                  role="menuitem"
-                  aria-label="How-to videos"
-                  onClick={() => { setOpen(false); setVideosOpen(true); }}
-                  style={itemStyle}
-                >
-                  <span style={glyphStyle}>
-                    <PlayCircle size={15} weight="light" />
-                  </span>
-                  <Label title="Videos" />
-                </button>
-              )}
-
-              {/* Walkthrough is a tile like the rest (13 Oct 2026, his yes to the
-                  mock): it had landed as a full-width "Continue walkthrough / Start
-                  again" list between Settings and Videos, doubling the menu's height
-                  and stranding Videos under it. One tile, one tap: it picks up a
-                  walkthrough that is under way or paused, and otherwise starts it
-                  from the beginning. A hand, not a second play glyph next to Videos. */}
-              {guidance && !guest && (
-                <button
-                  role="menuitem"
-                  aria-label={guidance.choose ? "Choose walkthrough" : guidance.resumable ? "Continue walkthrough" : "Start walkthrough"}
-                  onClick={() => { setOpen(false); if (guidance.choose) guidance.choose(); else if (guidance.resumable || !guidance.restart) guidance.resume(); else guidance.restart(); }}
-                  style={itemStyle}
-                >
-                  <span style={glyphStyle}>
-                    <HandPointing size={15} weight="light" />
-                  </span>
-                  <Label title="Walkthrough" />
-                </button>
-              )}
+              {/* Help (24 Nov 2026, his yes to the mock): Videos and Walkthrough were
+                  two tiles; they are rows in the Help sheet now, under the box
+                  that writes to Brennan. Six tiles become five. */}
+              <button
+                role="menuitem"
+                aria-label={unread ? "Help, new reply" : "Help"}
+                onClick={() => { setOpen(false); setHelpOpen(true); }}
+                style={itemStyle}
+              >
+                <span style={{ ...glyphStyle, position: "relative" }}>
+                  <Question size={15} weight="light" />
+                  <HelpDot className="-top-1 -right-1" />
+                </span>
+                <Label title="Help" />
+              </button>
             </>
           )}
 
         </div>
       )}
 
-      {videosOpen && <VideosSheet onClose={() => setVideosOpen(false)} />}
+      {helpOpen && <HelpSheet guest={guest} onClose={() => setHelpOpen(false)} />}
     </div>
   );
 }

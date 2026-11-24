@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { SearchButton } from "@/components/search/GlobalSearch";
 import { NewJourneyLink, ProfileLink } from "@/components/overlays/AppOverlays";
+import HelpDot from "@/components/help/HelpDot";
 
 interface AppHeaderProps {
   avatarUrl?: string | null;
@@ -69,6 +70,7 @@ export default function AppHeader({ avatarUrl, subtitle, showNewTrip }: AppHeade
               </svg>
             )}
           </div>
+          <HelpDot className="-top-0.5 -right-0.5" />
         </ProfileLink>
       </div>
     </header>

@@ -31,6 +31,13 @@ export async function POST() {
     const paths = (files ?? []).map((f) => `${tripId}/${f.name}`);
     if (paths.length) await admin.storage.from("card-attachments").remove(paths);
   }
+  // Help: the conversation and its pictures. The rows also cascade with the
+  // sign-in, but that delete can fail, so they go by name first.
+  const { data: pics } = await admin.storage.from("help-pictures").list(user.id, { limit: 1000 });
+  const picPaths = (pics ?? []).map((f) => `${user.id}/${f.name}`);
+  if (picPaths.length) await admin.storage.from("help-pictures").remove(picPaths);
+  const { error: helpErr } = await admin.from("help_messages").delete().eq("user_id", user.id);
+  if (helpErr) console.error("[Roam] help messages not deleted:", helpErr.message);
   const { error: authErr } = await admin.auth.admin.deleteUser(user.id);
   if (authErr) {
     console.error("[Roam] deleteUser failed:", authErr.message);

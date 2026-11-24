@@ -23,6 +23,7 @@ export default async function AdminPage() {
       <div className="sticky top-0 z-20 h-14 flex items-center gap-3.5 px-7" style={{ background: "#1A1A2E", color: "#fff" }}>
         <a href="/trips" className="font-display text-[21px]">Roam</a>
         <span className="text-[11px] tracking-[0.14em]" style={{ color: "rgba(255,255,255,0.62)" }}>ADMIN</span>
+        <a href="/admin/feedback" className="text-[13px] underline underline-offset-4">Feedback</a>
       </div>
       <div className="max-w-[1180px] mx-auto px-7 pb-8">
         {error ? <p className="text-[14px]" style={{ color: "#B0541F" }}>Couldn&apos;t load the journeys. Try again.</p> : <AdminTable rows={rows} />}

@@ -10,6 +10,7 @@ import OfflineQueueIndicator from "@/components/offline/OfflineQueueIndicator";
 import InstallBanner from "@/components/ui/InstallBanner";
 import ErrorReporter from "@/components/ui/ErrorReporter";
 import AdminViewBanner from "@/components/ui/AdminViewBanner";
+import HelpHost from "@/components/help/HelpHost";
 
 export default function AppLayout({
   children,
@@ -48,6 +49,8 @@ export default function AppLayout({
         {/* Records what the app could not handle, so a failure on someone
             else's phone is not silent (scale audit, Sept 2026). */}
         <ErrorReporter />
+        {/* Help for the doors outside a journey, and the unread dot. */}
+        <HelpHost />
        </JourneyGuidanceProvider></ToastProvider>
       </AppOverlaysProvider>
     </GlobalSearchProvider>

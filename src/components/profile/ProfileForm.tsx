@@ -9,6 +9,8 @@
 // Host contract (components/ui/Overlay.tsx): flex column, flex-shrink-0
 // header, `flex-1 min-h-0 overflow-y-auto` body carrying every input.
 
+import HelpDot from "@/components/help/HelpDot";
+import { openHelp } from "@/lib/help/unread";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
@@ -173,12 +175,17 @@ export default function ProfileForm({ initial = null, variant = "page", onDismis
               show: the overlay is reachable from a phone, where there is no
               dropdown at all. */}
           <div
-            className={`flex items-center gap-6 ${
+            className={`flex flex-wrap items-center gap-x-6 ${
               overlay
                 ? "mt-8 pt-4 border-t border-gray-100 md:hidden"
                 : "mt-10 pt-4 border-t border-gray-100 md:hidden"
             }`}
           >
+            {/* The phone's door to Help outside a journey (24 Nov 2026). */}
+            <button type="button" onClick={() => { onDismiss?.(); openHelp(); }} className="relative text-sm font-semibold text-gray-600 min-h-[44px]">
+              Message us
+              <HelpDot className="top-1.5 -right-2" />
+            </button>
             <GuideLink className="text-sm font-semibold text-gray-400 hover:text-gray-500 transition-colors">
               How Roam works
             </GuideLink>

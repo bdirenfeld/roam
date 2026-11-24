@@ -26,6 +26,10 @@ export default function ErrorScreen({ onRetry }: { onRetry: () => void }) {
           Try again
         </button>
         {/* A plain link so it works even when the app's router is what broke. */}
+        {/* Carries the page that broke, so the message says where. */}
+        <a href="/trips?help=1" onClick={() => { try { sessionStorage.setItem("roam:help-from", window.location.pathname); } catch { /* private mode */ } }} className="mt-2 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-[14px] underline underline-offset-[3px]" style={{ color: "rgba(26,26,46,0.62)" }}>
+          Tell us
+        </a>
         <a href="/trips" className="mt-4 text-[14px] underline underline-offset-[3px]" style={{ color: "rgba(26,26,46,0.6)" }}>
           Back to your journeys
         </a>

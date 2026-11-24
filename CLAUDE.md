@@ -2616,3 +2616,15 @@ hidden under the headers).
   exact kind in `details.kind_type`/`kind_sub` (`noteDefaults` files the place as it).
 - **The week drops a card's `archived` rows**: when auditing a day by SQL, filter `not archived` or you will count
   cards the app never shows (I told him 4 Sep had 14 cards; it had 2).
+
+## Help: one conversation per person (24 Nov 2026)
+⋯ → Help (one tile; Videos and Walkthrough are rows inside it, so the menu is five tiles), avatar → Message us,
+Profile → Message us, "Tell us" on the crash page (`/trips?help=1`). `components/help/HelpSheet`; pure rules in
+`lib/help/message`. Table `help_messages` (migration 022) has RLS on and NO policies: only `api/help` (service role,
+pinned to the signed-in id) touches it. Brennan answers at `/admin/feedback`; a reply lights `HelpDot`, no email to
+the user (no sending domain). His alert goes to `HELP_ALERT_EMAIL` (Vercel; unset = no alert, and no address in code).
+The limit refuses when it cannot count, unlike `underQuota`. Share-link tokens are stripped by `safeScreen`.
+Pictures: redrawn as JPEG on the device (drops location), private bucket `help-pictures`. Each message tags the
+Clarity recording (`feedback` = RM-XXXXXX). Delete account removes the rows and pictures by name.
+Apply migration 022 BEFORE the push: until it exists, Help says "Couldn't load your messages".
+No grey helper text in this sheet, no "what's sent" link (his ruling); the privacy page carries it.
