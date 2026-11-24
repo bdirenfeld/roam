@@ -131,7 +131,7 @@ export default function LandingPage({ signInFailed = false }: { signInFailed?: b
           <div style={{ marginTop: 22 }}>
             <GoogleButton skin="light" full onClick={handleSignIn} pending={isPending} />
           </div>
-          <p className="font-sans" style={{ marginTop: 10, fontSize: 12.5, color: ON_DARK_BODY, opacity: 0.8 }}>Free. No card.</p>
+          <p className="font-sans" style={{ marginTop: 10, fontSize: 12.5, color: ON_DARK_BODY, opacity: 0.8 }}>Your first journey is free.</p>
         </div>
         <Footer />
       </div>
@@ -173,7 +173,7 @@ export default function LandingPage({ signInFailed = false }: { signInFailed?: b
             </h2>
             <div style={{ flex: "0 0 auto" }}>
               <GoogleButton skin="light" size="lg" onClick={handleSignIn} pending={isPending} />
-              <p className="font-sans" style={{ marginTop: 10, fontSize: 12.5, color: ON_DARK_BODY, opacity: 0.8 }}>Free. No card.</p>
+              <p className="font-sans" style={{ marginTop: 10, fontSize: 12.5, color: ON_DARK_BODY, opacity: 0.8 }}>Your first journey is free.</p>
             </div>
           </div>
         </div>

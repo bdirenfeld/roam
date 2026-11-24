@@ -83,7 +83,7 @@ export function SmallCaps({ children, color, size = 10 }: { children: React.Reac
 export function FreeLine({ color }: { color: string }) {
   return (
     <p className="font-sans" style={{ marginTop: 8, fontSize: 12.5, lineHeight: 1.5, letterSpacing: "-0.003em", color }}>
-      Free. No card.
+      Your first journey is free.
     </p>
   );
 }

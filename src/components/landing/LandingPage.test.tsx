@@ -35,6 +35,6 @@ describe("the landing page sign-in", () => {
     expect(doors).toHaveLength(2);
     for (const d of doors) expect(d.getAttribute("href")).toBe(DEMO_JOURNEY.href);
     expect(DEMO_JOURNEY.href).toMatch(/^\/journey\/[a-f0-9]{12}$/);
-    expect(screen.getAllByText("Free. No card.").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText("Your first journey is free.").length).toBeGreaterThanOrEqual(2);
   });
 });

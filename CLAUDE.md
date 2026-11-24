@@ -2467,7 +2467,7 @@ Four commits (bbf019a, f532668, cb36b20, 614cef0) opened the journey map in plac
   of 26 Sep and its 500 KB jpg are gone). Atoms, palette, the three plates and `DEMO_JOURNEY` (the
   public New York page a stranger can read without an account) live in `landingAtoms.tsx`.
   Tagline "The whole trip, in one place." (his "amazing"); subhead is his Instagram bio line;
-  "Free. No card." under every Google button. Keep the words matching the bio.
+  "Your first journey is free." under every Google button (24 Nov 2026, the paywall). Keep the words matching the bio.
 - First sign-in (24 Nov 2026, replaced the self-opening form): `components/trips/FirstScreen.tsx`, shown
   until there is a journey besides the example (`onlySample`): Plan a journey beside an "Example" tile.
   The example (`lib/sampleTrip`, Paris and Normandy, 8 days) is built only when tapped, then is a normal
