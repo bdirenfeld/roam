@@ -49,7 +49,8 @@ export default function HelpSheet({ onClose, guest = false }: { onClose: () => v
   const load = useCallback(async () => {
     setState("loading");
     const res = await fetch("/api/help").catch(() => null);
-    if (res?.status === 401) { setState("signed-out"); return; }
+    // Middleware sends a signed-out request to the sign-in page (a 307), so it arrives as a redirect.
+    if (res?.status === 401 || res?.redirected) { setState("signed-out"); return; }
     const j = res?.ok ? ((await res.json().catch(() => null)) as { messages?: Msg[] } | null) : null;
     if (!j?.messages) { setState("failed"); return; }
     setMessages(j.messages);

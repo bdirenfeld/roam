@@ -81,6 +81,15 @@ describe("Help", () => {
     expect(screen.getByRole("button", { name: /How-to videos/ })).toBeTruthy();
   });
 
+  it("signed out is usually a redirect to the sign-in page, not a 401: the rows, no box, no error", async () => {
+    vids.available = { "first-journey": 1 };
+    server = () => Promise.resolve({ ok: true, status: 200, redirected: true, json: () => Promise.reject(new Error("html")) });
+    render(<HelpSheet onClose={() => {}} />);
+    await waitFor(() => expect(screen.queryByRole("textbox")).toBeNull());
+    expect(screen.queryByText(/Couldn.t load/)).toBeNull();
+    expect(screen.getByRole("button", { name: /How-to videos/ })).toBeTruthy();
+  });
+
   it("Walkthroughs closes Help and opens the list; never for a guest", async () => {
     const choose = vi.fn(), onClose = vi.fn();
     const at = (guest: boolean) => <JourneyGuidanceContext.Provider value={{ resume: () => {}, choose }}><HelpSheet guest={guest} onClose={onClose} /></JourneyGuidanceContext.Provider>;
