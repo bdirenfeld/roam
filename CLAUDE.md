@@ -2619,6 +2619,16 @@ hidden under the headers).
 - **The week drops a card's `archived` rows**: when auditing a day by SQL, filter `not archived` or you will count
   cards the app never shows (I told him 4 Sep had 14 cards; it had 2).
 
+## Help: one conversation per JOURNEY (24 Nov 2026, changed the same day)
+He tried one-per-person and rejected it: a note about Paris showed in every journey's Help. Now `help_messages.trip_id`
+(migration 023, `on delete set null`) makes a thread per journey plus one outside any journey; `threadOf` in
+`lib/help/message` sends a journey the person can no longer open to the general thread. `GET /api/help?trip=` returns
+that thread plus `elsewhere` (unread replies in other threads): each is a row in the sheet that opens that thread
+in place. `/api/help/read` takes the reply ids on screen, so a reply in another thread keeps its dot. The inbox is one
+row per person AND journey; a reply carries `tripId`. His door to the inbox is `components/help/AdminDoor` (avatar
+menu, and Profile on a phone), with the count of waiting threads; nobody else sees it. `VideosSheet` takes `onBack`
+when opened from Help: the arrow returns to Help with the draft kept, X closes everything.
+The rest of this section still holds.
 ## Help: one conversation per person (24 Nov 2026)
 ⋯ → Help (one tile; Videos and Walkthrough are rows inside it, so the menu is five tiles), avatar → Message us,
 Profile → Message us, "Tell us" on the crash page (`/trips?help=1`). `components/help/HelpSheet`; pure rules in

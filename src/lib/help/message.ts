@@ -58,20 +58,40 @@ export function pictureType(b: Uint8Array): "image/jpeg" | "image/png" | "image/
   return s(0) === "RIFF" && s(8) === "WEBP" ? "image/webp" : null;
 }
 
-export interface HelpRow { id: string; user_id: string; from_admin: boolean; body: string; picture_path: string | null; context: Record<string, unknown> | null; read_at: string | null; created_at: string }
-export interface Conversation { userId: string; rows: HelpRow[]; waiting: boolean; urgent: boolean; last: string }
+export interface HelpRow { id: string; user_id: string; from_admin: boolean; body: string; picture_path: string | null; context: Record<string, unknown> | null; read_at: string | null; created_at: string; trip_id?: string | null }
+export interface Conversation { key: string; userId: string; tripId: string | null; rows: HelpRow[]; waiting: boolean; urgent: boolean; last: string }
 
-/** Rows in any order → one conversation per person: waiting first (urgent, then longest waiting), then newest. */
+/**
+ * Which thread a message sits in: its journey's, or null for the one outside
+ * any journey. A journey the person can no longer open (left it, or it was
+ * deleted) falls back to null, so nothing they wrote goes out of reach.
+ */
+export const threadOf = (tripId: string | null | undefined, canOpen: (id: string) => boolean): string | null => (tripId && canOpen(tripId) ? tripId : null);
+
+/** Brennan's unread replies sitting in threads other than the one on screen. */
+export function unreadElsewhere(rows: { from_admin: boolean; read_at: string | null; trip_id?: string | null }[], here: string | null, canOpen: (id: string) => boolean): { trip: string | null; unread: number }[] {
+  const out: { trip: string | null; unread: number }[] = [];
+  rows.forEach((r) => {
+    if (!r.from_admin || r.read_at) return;
+    const trip = threadOf(r.trip_id, canOpen);
+    if (trip === here) return;
+    const hit = out.find((o) => o.trip === trip);
+    if (hit) hit.unread++; else out.push({ trip, unread: 1 });
+  });
+  return out;
+}
+
+/** Rows in any order → one conversation per person AND journey: waiting first (urgent, then longest waiting), then newest. */
 export function conversations(rows: HelpRow[]): Conversation[] {
   const by: Record<string, HelpRow[]> = {};
-  rows.forEach((r) => { (by[r.user_id] = by[r.user_id] ?? []).push(r); });
-  const out = Object.keys(by).map((userId) => {
-    const list = by[userId].sort((a, b) => a.created_at.localeCompare(b.created_at));
+  rows.forEach((r) => { const k = r.user_id + "|" + (r.trip_id ?? ""); (by[k] = by[k] ?? []).push(r); });
+  const out = Object.keys(by).map((key) => {
+    const list = by[key].sort((a, b) => a.created_at.localeCompare(b.created_at));
     const lastRow = list[list.length - 1];
     let i = list.length;
     while (i > 0 && !list[i - 1].from_admin) i--;
     const open = list.slice(i);
-    return { userId, rows: list, waiting: open.length > 0, urgent: open.some((r) => isUrgent(r.body)), last: (open[0] ?? lastRow).created_at };
+    return { key, userId: lastRow.user_id, tripId: lastRow.trip_id ?? null, rows: list, waiting: open.length > 0, urgent: open.some((r) => isUrgent(r.body)), last: (open[0] ?? lastRow).created_at };
   });
   return out.sort((a, b) => {
     if (a.waiting !== b.waiting) return a.waiting ? -1 : 1;

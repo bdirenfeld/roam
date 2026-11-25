@@ -8,6 +8,7 @@ import { UserCircle, Plus, Files } from "@phosphor-icons/react";
 import SharedWithFaces from "@/components/trip/SharedWithFaces";
 import AppMenu from "@/components/ui/AppMenu";
 import HelpDot from "@/components/help/HelpDot";
+import AdminDoor from "@/components/help/AdminDoor";
 import { openHelp } from "@/lib/help/unread";
 import {
   NewJourneyLink,
@@ -505,6 +506,7 @@ export default function DesktopMasthead({ previewPath }: { previewPath?: string 
             >
               Message us
             </button>
+            <AdminDoor style={{ display: "block", padding: "11px 16px", fontSize: 13, color: INK, textDecoration: "none" }} />
             <form action={signOut}>
               <button
                 type="submit"

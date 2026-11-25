@@ -2,11 +2,14 @@
 
 // ── Help: one box, Brennan's replies, walkthroughs and videos (24 Nov 2026) ─
 // Opens from the journey menu's Help tile, the avatar menu, Profile, and the
-// crash page. One conversation per person: no categories, no statuses.
+// crash page. One conversation per JOURNEY, and one outside any journey (his
+// ruling after trying it: a note about Paris showed in every journey's Help).
+// No categories, no statuses. A reply waiting in another thread is a row at
+// the top that opens that thread here.
 // Same white sheet as VideosSheet. Someone signed out (the demo) gets the two
 // rows and no box.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useSheetDrag } from "@/hooks/useSheetDrag";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
@@ -15,7 +18,7 @@ import { useToast } from "@/components/ui/Toast";
 import { useJourneyGuidance } from "@/components/onboarding/JourneyGuidanceContext";
 import VideosSheet from "@/components/videos/VideosSheet";
 import { listed, deviceOf } from "@/lib/videos/howTo";
-import { MAX_BODY, messageCode } from "@/lib/help/message";
+import { MAX_BODY, messageCode, safeScreen, tripFromScreen } from "@/lib/help/message";
 import { setHelpUnread } from "@/lib/help/unread";
 import { shrinkPicture } from "@/lib/help/picture";
 
@@ -26,6 +29,8 @@ const DRAFT = "roam:help-draft";
 export const HELP_FROM = "roam:help-from";
 
 interface Msg { id: string; mine: boolean; body: string; picture: boolean }
+interface Elsewhere { trip: string | null; title: string | null; unread: number }
+const draftKey = (trip: string | null) => (trip ? `${DRAFT}:${trip}` : DRAFT);
 function kept(key: string): string { try { return sessionStorage.getItem(key) ?? ""; } catch { return ""; } }
 function keep(key: string, v: string) { try { if (v) sessionStorage.setItem(key, v); else sessionStorage.removeItem(key); } catch { /* private mode */ } }
 
@@ -36,6 +41,10 @@ export default function HelpSheet({ onClose, guest = false }: { onClose: () => v
   const [picture, setPicture] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [videos, setVideos] = useState(false);
+  // The thread this screen belongs to, and the one being read (a reply row can open another).
+  const own = useMemo(() => (typeof window === "undefined" ? null : tripFromScreen(safeScreen(kept(HELP_FROM) || window.location.pathname))), []);
+  const [at, setAt] = useState<{ trip: string | null; title: string | null }>({ trip: own, title: null });
+  const [elsewhere, setElsewhere] = useState<Elsewhere[]>([]);
   const sendingId = useRef<string | null>(null);
   const thread = useRef<HTMLDivElement>(null);
   const file = useRef<HTMLInputElement>(null);
@@ -48,22 +57,24 @@ export default function HelpSheet({ onClose, guest = false }: { onClose: () => v
 
   const load = useCallback(async () => {
     setState("loading");
-    const res = await fetch("/api/help").catch(() => null);
+    const res = await fetch(at.trip ? `/api/help?trip=${at.trip}` : "/api/help").catch(() => null);
     // Middleware sends a signed-out request to the sign-in page (a 307), so it arrives as a redirect.
     if (res?.status === 401 || res?.redirected) { setState("signed-out"); return; }
-    const j = res?.ok ? ((await res.json().catch(() => null)) as { messages?: Msg[] } | null) : null;
+    const j = res?.ok ? ((await res.json().catch(() => null)) as { messages?: Msg[]; elsewhere?: Elsewhere[] } | null) : null;
     if (!j?.messages) { setState("failed"); return; }
     setMessages(j.messages);
+    setElsewhere(j.elsewhere ?? []);
     setState("ready");
-    if (j.messages.some((m) => !m.mine)) {
-      setHelpUnread(0);
-      void fetch("/api/help/read", { method: "POST" }).catch(() => {});
-    }
-  }, []);
-  useEffect(() => { setText(kept(DRAFT)); void load(); }, [load]);
+    // Only this thread's replies are read; one waiting in another keeps the dot.
+    setHelpUnread((j.elsewhere ?? []).reduce((n, e) => n + e.unread, 0));
+    const replies = j.messages.filter((m) => !m.mine).map((m) => m.id);
+    if (replies.length) void fetch("/api/help/read", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: replies }) }).catch(() => {});
+  }, [at.trip]);
+  useEffect(() => { setText(kept(draftKey(at.trip))); void load(); }, [load, at.trip]);
+  const go = (trip: string | null, title: string | null) => { sendingId.current = null; setPicture(null); setMessages(null); setAt({ trip, title }); };
   useEffect(() => { if (thread.current) thread.current.scrollTop = thread.current.scrollHeight; }, [messages]);
 
-  const write = (v: string) => { setText(v); keep(DRAFT, v); };
+  const write = (v: string) => { setText(v); keep(draftKey(at.trip), v); };
 
   const send = async () => {
     const body = text.trim();
@@ -74,6 +85,7 @@ export default function HelpSheet({ onClose, guest = false }: { onClose: () => v
     const form = new FormData();
     form.set("id", id);
     form.set("body", body);
+    form.set("trip", at.trip ?? "");
     form.set("screen", kept(HELP_FROM) || window.location.pathname);
     form.set("viewport", `${window.innerWidth}x${window.innerHeight}`);
     form.set("language", navigator.language);
@@ -111,7 +123,7 @@ export default function HelpSheet({ onClose, guest = false }: { onClose: () => v
   };
 
   if (typeof document === "undefined") return null;
-  if (videos) return <VideosSheet onClose={() => setVideos(false)} />;
+  if (videos) return <VideosSheet onBack={() => setVideos(false)} onClose={onClose} />;
   const has = !!messages?.length;
   const row = "w-full min-h-[48px] flex items-center justify-between text-left text-[15px] font-medium";
   return createPortal(
@@ -140,6 +152,21 @@ export default function HelpSheet({ onClose, guest = false }: { onClose: () => v
         <div className="min-h-0 overflow-y-auto overscroll-contain px-5 pb-1">
           {state !== "signed-out" && (
             <>
+              {at.trip !== own && (
+                <div className="flex items-center gap-3 pb-2">
+                  <button type="button" onClick={() => go(own, null)} className="min-h-[44px] -ml-1 pr-2 text-[15px] font-medium">&lsaquo; Back</button>
+                  <span className="text-[15px] font-semibold truncate">{at.title ?? "Your other messages"}</span>
+                </div>
+              )}
+              {elsewhere.map((e) => (
+                <button key={e.trip ?? "general"} type="button" onClick={() => go(e.trip, e.title)} className={row} style={{ borderBottom: `1px solid ${RULE}`, marginBottom: 12 }}>
+                  <span className="flex items-center gap-2 min-w-0">
+                    <span aria-hidden className="w-[9px] h-[9px] rounded-full flex-shrink-0" style={{ background: "#B0541F" }} />
+                    <span className="truncate">Brennan replied{e.title ? ` about ${e.title}` : ""}</span>
+                  </span>
+                  <span aria-hidden>›</span>
+                </button>
+              ))}
               {has && (
                 <div ref={thread} role="log" aria-label="Your messages" className="flex flex-col gap-2 max-h-[38dvh] overflow-y-auto pb-3">
                   {messages!.map((m) => (

@@ -104,14 +104,56 @@ describe("Help", () => {
     expect(screen.queryByRole("button", { name: /Walkthroughs/ })).toBeNull();
   });
 
-  it("How-to videos opens the list, and closing it comes back to Help", async () => {
+  it("How-to videos has a way back to Help that keeps what you were writing; X closes it all", async () => {
     vids.available = { "first-journey": 1 };
-    render(<HelpSheet onClose={() => {}} />);
-    await box();
+    const onClose = vi.fn();
+    render(<HelpSheet onClose={onClose} />);
+    await type("half a thought");
     fireEvent.click(screen.getByRole("button", { name: /How-to videos/ }));
-    const sheet = screen.getByRole("dialog", { name: "How-to videos" });
-    fireEvent.click(sheet.querySelector('button[aria-label="Close"]')!);
+    expect(screen.queryByRole("dialog", { name: "Help" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Back to Help" }));
     expect(screen.getByRole("dialog", { name: "Help" })).toBeTruthy();
+    expect((await box() as HTMLTextAreaElement).value).toBe("half a thought");
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: /How-to videos/ }));
+    fireEvent.click(screen.getByRole("dialog", { name: "How-to videos" }).querySelector('button[aria-label="Close"]')!);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("in a journey, reads and writes that journey's thread only, with its own draft", async () => {
+    const T = "44444444-4444-4444-8444-444444444444";
+    server = (u, i) => (i?.method === "POST" ? ok({ sent: true }) : ok({ messages: [] }));
+    sessionStorage.setItem(HELP_FROM, `/trips/${T}/plan`);
+    sessionStorage.setItem("roam:help-draft", "a general draft");
+    render(<HelpSheet onClose={() => {}} />);
+    expect((await box() as HTMLTextAreaElement).value).toBe("");
+    expect(calls[0].url).toBe("/api/help?trip=" + T);
+    await type("about this journey");
+    expect(sessionStorage.getItem("roam:help-draft:" + T)).toBe("about this journey");
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    await screen.findByText("about this journey", { selector: "div" });
+    expect(posts()[0].init!.body!.get("trip")).toBe(T);
+    expect(sessionStorage.getItem("roam:help-draft")).toBe("a general draft");
+  });
+
+  it("a reply waiting in another journey's thread is a row that opens it, and the dot stays until then", async () => {
+    const T = "44444444-4444-4444-8444-444444444444";
+    setHelpUnread(1);
+    server = (u) => (u.includes("trip=")
+      ? ok({ messages: [{ id: "b", mine: false, body: "Fixed for Paris", picture: false }], elsewhere: [] })
+      : ok({ messages: [{ id: "a", mine: true, body: "general note", picture: false }], elsewhere: [{ trip: T, title: "Paris", unread: 1 }] }));
+    render(<HelpSheet onClose={() => {}} />);
+    const rowBtn = await screen.findByRole("button", { name: /Brennan replied about Paris/ });
+    expect(screen.queryByText("Fixed for Paris")).toBeNull();
+    expect(getHelpUnread()).toBe(1);
+    expect(calls.some((c) => c.url === "/api/help/read")).toBe(false);
+    fireEvent.click(rowBtn);
+    expect(await screen.findByText("Fixed for Paris")).toBeTruthy();
+    expect(screen.queryByText("general note")).toBeNull();
+    expect(screen.getByText("Paris")).toBeTruthy();
+    await waitFor(() => expect(getHelpUnread()).toBe(0));
+    fireEvent.click(screen.getByRole("button", { name: /Back/ }));
+    expect(await screen.findByText("general note")).toBeTruthy();
   });
 
   it("is masked from the recording", async () => {

@@ -20,6 +20,7 @@ function table(name: string) {
     update: (r: Row) => { op = "update"; put = r; return q; },
     eq: (k: string, v: unknown) => { tests.push((r) => r[k] === v); return q; },
     is: (k: string, v: unknown) => { tests.push((r) => (r[k] ?? null) === v); return q; },
+    in: (k: string, vs: unknown[]) => { tests.push((r) => vs.includes(r[k])); return q; },
     gte: (k: string, v: string) => { tests.push((r) => Date.parse(String(r[k])) >= Date.parse(v)); return q; },
     order: () => q, limit: () => q,
     maybeSingle: () => { one = true; return q; },
@@ -51,6 +52,10 @@ const ask = (fields: Record<string, string | Blob> = {}) => {
   return POST(new NextRequest("https://roam.test/api/help", { method: "POST", body: f }));
 };
 const reply = (j: Row) => REPLY(new NextRequest("https://roam.test/api/help/reply", { method: "POST", body: JSON.stringify(j) }));
+const read = (ids?: string[]) => READ(new NextRequest("https://roam.test/api/help/read", { method: "POST", body: ids ? JSON.stringify({ ids }) : undefined }));
+const get = async (q = "") => (await GET(new NextRequest("https://roam.test/api/help" + q))).json();
+const TRIP = "44444444-4444-4444-8444-444444444444";
+const GONE = "55555555-5555-4555-8555-555555555555";
 const msgs = () => st.tables.help_messages ?? [];
 const uid = (n: number) => `33333333-3333-4333-8333-${String(n).padStart(12, "0")}`;
 
@@ -115,9 +120,76 @@ describe("reading", () => {
   it("counts and clears only your unread replies", async () => {
     const n = async () => (await (await GET(new NextRequest("https://roam.test/api/help?unread=1"))).json()).unread;
     expect(await n()).toBe(1);
-    await READ();
+    await read();
     expect(await n()).toBe(0);
     expect(msgs()[2].read_at).toBeNull();
+  });
+});
+
+describe("a thread per journey", () => {
+  const A = uid(1), B = uid(2), C = uid(3), D = uid(4);
+  beforeEach(() => {
+    const at = (n: number) => new Date(Date.now() - 100000 + n).toISOString();
+    // The stand-in's trips table is what this person's own session can open.
+    st.tables.trips = [{ id: TRIP, user_id: SAM, title: "Paris" }];
+    st.tables.help_messages = [
+      { id: A, user_id: SAM, body: "about Paris", from_admin: false, read_at: null, created_at: at(1), trip_id: TRIP },
+      { id: B, user_id: SAM, body: "Paris answer", from_admin: true, read_at: null, created_at: at(2), trip_id: TRIP },
+      { id: C, user_id: SAM, body: "general", from_admin: false, read_at: null, created_at: at(3), trip_id: null },
+      { id: D, user_id: SAM, body: "left that journey", from_admin: false, read_at: null, created_at: at(4), trip_id: GONE },
+    ];
+  });
+  it("a journey's Help shows that journey's messages and nothing else", async () => {
+    const j = await get("?trip=" + TRIP);
+    expect(j.messages.map((m: Row) => m.body).sort()).toEqual(["Paris answer", "about Paris"]);
+    expect(j.elsewhere).toEqual([]);
+  });
+  it("outside a journey: the general ones, plus any from a journey they can no longer open", async () => {
+    const j = await get();
+    expect(j.messages.map((m: Row) => m.body).sort()).toEqual(["general", "left that journey"]);
+    // the Paris reply is waiting, and says where
+    expect(j.elsewhere).toEqual([{ trip: TRIP, unread: 1, title: "Paris" }]);
+  });
+  it("asking for a journey you can't open gives the general thread, never theirs", async () => {
+    st.tables.help_messages.push({ id: uid(5), user_id: ADMIN, body: "not yours", from_admin: false, read_at: null, created_at: new Date().toISOString(), trip_id: GONE });
+    const j = await get("?trip=" + GONE);
+    expect(j.thread).toBeNull();
+    expect(j.messages.map((m: Row) => m.body).sort()).toEqual(["general", "left that journey"]);
+  });
+  it("reading one thread leaves a reply in another unread", async () => {
+    st.tables.help_messages.push({ id: uid(6), user_id: SAM, body: "general answer", from_admin: true, read_at: null, created_at: new Date().toISOString(), trip_id: null });
+    await read([uid(6)]);
+    expect((await get("?unread=1")).unread).toBe(1);
+    expect(msgs().find((m) => m.id === B)!.read_at).toBeNull();
+    await read([B]);
+    expect((await get("?unread=1")).unread).toBe(0);
+  });
+  it("a new message lands in the thread on screen; a journey that isn't theirs lands in general", async () => {
+    await ask({ id: uid(7), trip: TRIP, screen: "/trips" });
+    expect(msgs().find((m) => m.id === uid(7))!.trip_id).toBe(TRIP);
+    await ask({ id: uid(8), trip: GONE });
+    expect(msgs().find((m) => m.id === uid(8))!.trip_id).toBeNull();
+    await ask({ id: uid(9), trip: "" , screen: `/trips/${TRIP}/plan` });
+    expect(msgs().find((m) => m.id === uid(9))!.trip_id).toBeNull();
+  });
+  it("an older page that sends no thread still files by the screen it was on", async () => {
+    await ask({ id: uid(7), screen: `/trips/${TRIP}/plan` });
+    expect(msgs().find((m) => m.id === uid(7))!.trip_id).toBe(TRIP);
+  });
+  it("Brennan answers into one thread, and only where they wrote", async () => {
+    st.user = ADMIN;
+    expect((await reply({ id: uid(7), userId: SAM, tripId: uid(99), body: "hi" })).status).toBe(404);
+    expect((await reply({ id: uid(7), userId: SAM, tripId: "nope", body: "hi" })).status).toBe(400);
+    expect((await reply({ id: uid(7), userId: SAM, tripId: TRIP, body: "hi" })).status).toBe(200);
+    expect(msgs().find((m) => m.id === uid(7))!.trip_id).toBe(TRIP);
+    expect((await reply({ id: uid(8), userId: SAM, tripId: null, body: "hi" })).status).toBe(200);
+    expect(msgs().find((m) => m.id === uid(8))!.trip_id).toBeNull();
+  });
+  it("counts the threads waiting on Brennan, for Brennan only", async () => {
+    expect((await GET(new NextRequest("https://roam.test/api/help?waiting=1"))).status).toBe(404);
+    st.user = ADMIN;
+    // Paris is answered; general and the left journey are each waiting
+    expect((await get("?waiting=1")).waiting).toBe(2);
   });
 });
 

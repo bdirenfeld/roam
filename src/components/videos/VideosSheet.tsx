@@ -18,11 +18,12 @@ import VideoPlayer from "./VideoPlayer";
 const INK = "#1A1A2E";
 const CAPTION = "rgba(26,26,46,0.62)";
 
-export default function VideosSheet({ onClose }: { onClose: () => void }) {
+/** `onBack`: opened from Help, so the header carries a way back to it (X closes everything). */
+export default function VideosSheet({ onClose, onBack }: { onClose: () => void; onBack?: () => void }) {
   const { available, markSeen } = useHowToVideos();
   const [playing, setPlaying] = useState<HowToVideo | null>(null);
   const drag = useSheetDrag(onClose, undefined, { mobileOnly: true });
-  useEscapeKey(onClose, !playing);
+  useEscapeKey(onBack ?? onClose, !playing);
   const rows = listed(available, typeof navigator === "undefined" ? "computer" : deviceOf(navigator.userAgent));
 
   if (typeof document === "undefined") return null;
@@ -45,7 +46,14 @@ export default function VideosSheet({ onClose }: { onClose: () => void }) {
             <div className="w-9 h-[3px] rounded-full" style={{ background: "rgba(26,26,46,0.20)" }} />
           </div>
           <div className="flex items-center justify-between px-5 pt-3 pb-2">
-            <h2 className="font-display" style={{ fontSize: 23, fontWeight: 500, color: INK, letterSpacing: "-0.01em" }}>How-to videos</h2>
+            <div className="flex items-center min-w-0">
+              {onBack && (
+                <button type="button" onClick={onBack} aria-label="Back to Help" className="w-11 h-11 -ml-3 rounded-full flex items-center justify-center hover:bg-[rgba(26,26,46,0.06)]">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={INK} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M15 5l-7 7 7 7" /></svg>
+                </button>
+              )}
+              <h2 className="font-display" style={{ fontSize: 23, fontWeight: 500, color: INK, letterSpacing: "-0.01em" }}>How-to videos</h2>
+            </div>
             <button type="button" onClick={onClose} aria-label="Close" className="w-9 h-9 -mr-2 rounded-full flex items-center justify-center hover:bg-[rgba(26,26,46,0.06)]">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round" aria-hidden><path d="M18 6L6 18M6 6l12 12" /></svg>
             </button>

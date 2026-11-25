@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { cleanBody, conversations, isUrgent, isUuid, mayAlert, mayAsk, messageCode, pictureType, safeScreen, tripFromScreen, MAX_BODY, type HelpRow } from "./message";
+import { cleanBody, conversations, isUrgent, isUuid, mayAlert, mayAsk, messageCode, pictureType, safeScreen, threadOf, tripFromScreen, unreadElsewhere, MAX_BODY, type HelpRow } from "./message";
 
 const ID = "ece938aa-db7b-4436-bb59-442cc0dc5e10";
 const row = (id: string, user_id: string, from_admin: boolean, created_at: string, body = "hi"): HelpRow => ({ id, user_id, from_admin, body, created_at, picture_path: null, context: null, read_at: null });
@@ -59,6 +59,30 @@ describe("a help message", () => {
     ]);
     expect(c.map((x) => x.userId)).toEqual(["urgent", "idea-early", "idea-late", "done-new", "done-old"]);
     expect(c[4].rows.map((r) => r.id)).toEqual(["4", "5"]);
+  });
+  it("keeps each journey's conversation apart, and the one outside any journey", () => {
+    const c = conversations([
+      { ...row("1", "sam", false, "1"), trip_id: "paris" }, { ...row("2", "sam", true, "2"), trip_id: "paris" },
+      { ...row("3", "sam", false, "3"), trip_id: null }, { ...row("4", "sam", false, "4"), trip_id: "rome" },
+    ]);
+    expect(c.map((x) => [x.tripId, x.waiting, x.rows.length])).toEqual([[null, true, 1], ["rome", true, 1], ["paris", false, 2]]);
+    expect(new Set(c.map((x) => x.key)).size).toBe(3);
+  });
+  it("a journey they can't open has no thread of its own", () => {
+    const can = (id: string) => id === "paris";
+    expect(threadOf("paris", can)).toBe("paris");
+    expect(threadOf("rome", can)).toBeNull();
+    expect(threadOf(null, can)).toBeNull();
+  });
+  it("finds unread replies waiting in other threads, never the one on screen or read ones", () => {
+    const can = () => true;
+    const rows = [
+      { from_admin: true, read_at: null, trip_id: "paris" }, { from_admin: true, read_at: null, trip_id: "paris" },
+      { from_admin: true, read_at: "x", trip_id: "rome" }, { from_admin: false, read_at: null, trip_id: "rome" },
+      { from_admin: true, read_at: null, trip_id: null },
+    ];
+    expect(unreadElsewhere(rows, null, can)).toEqual([{ trip: "paris", unread: 2 }]);
+    expect(unreadElsewhere(rows, "paris", can)).toEqual([{ trip: null, unread: 1 }]);
   });
   it("is urgent only while unanswered", () => {
     expect(conversations([row("1", "a", false, "1", "refund please"), row("2", "a", true, "2")])[0].urgent).toBe(false);

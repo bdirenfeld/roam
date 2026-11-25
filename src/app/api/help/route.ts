@@ -1,4 +1,5 @@
-// ── Help: a person's conversation with Roam (24 Nov 2026) ─────────────────
+// ── Help: a person's conversations with Roam (24 Nov 2026) ────────────────
+// One thread per journey and one outside any journey (lib/help/message threadOf).
 // help_messages has no policies, so these routes use the service role and
 // every query is pinned to the signed-in person's own id (as api/errors does).
 
@@ -7,7 +8,8 @@ import { requireUser } from "@/lib/api/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAdmin } from "@/lib/adminView";
 import { alertBrennan } from "@/lib/help/alert";
-import { MAX_PICTURE_BYTES, cleanBody, isUrgent, isUuid, mayAlert, mayAsk, messageCode, pictureType, safeScreen, tripFromScreen } from "@/lib/help/message";
+import { MAX_PICTURE_BYTES, cleanBody, conversations, isUrgent, isUuid, mayAlert, mayAsk, messageCode, pictureType, safeScreen, threadOf, tripFromScreen, unreadElsewhere, type HelpRow } from "@/lib/help/message";
+import { SAMPLE_NAME, SAMPLE_TITLE } from "@/lib/sampleTrip/itinerary";
 
 export const dynamic = "force-dynamic";
 
@@ -21,11 +23,31 @@ export async function GET(req: NextRequest) {
     if (error) return NextResponse.json({ error: "Couldn't check." }, { status: 500 });
     return NextResponse.json({ unread: count ?? 0 });
   }
-  const { data, error } = await db.from("help_messages").select("id, from_admin, body, picture_path, created_at")
+  // How many threads are waiting on Brennan: the number on his own door to the inbox.
+  if (req.nextUrl.searchParams.get("waiting")) {
+    if (!isAdmin(gate.user.id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    const { data: all, error } = await db.from("help_messages").select("id, user_id, trip_id, from_admin, body, created_at").order("created_at", { ascending: false }).limit(1000);
+    if (error) return NextResponse.json({ error: "Couldn't check." }, { status: 500 });
+    return NextResponse.json({ waiting: conversations((all ?? []) as HelpRow[]).filter((c) => c.waiting).length });
+  }
+  const { data, error } = await db.from("help_messages").select("id, from_admin, body, picture_path, created_at, trip_id, read_at")
     .eq("user_id", gate.user.id).order("created_at", { ascending: false }).limit(200);
   if (error) return NextResponse.json({ error: "Couldn't load your messages." }, { status: 500 });
+  const rows = (data ?? []) as { id: string; from_admin: boolean; body: string; picture_path: string | null; created_at: string; trip_id: string | null; read_at: string | null }[];
+  const asked = req.nextUrl.searchParams.get("trip");
+  const ids = Array.from(new Set([...rows.map((m) => m.trip_id), isUuid(asked) ? asked : null].filter((v): v is string => !!v)));
+  // Through their own session: a journey they can't open has no thread of its own.
+  const { data: trips, error: tripErr } = ids.length ? await gate.supabase.from("trips").select("id, title").in("id", ids) : { data: [], error: null };
+  // Without the journeys every thread would run together: say it failed instead.
+  if (tripErr) return NextResponse.json({ error: "Couldn't load your messages." }, { status: 500 });
+  const title: Record<string, string> = {};
+  ((trips ?? []) as { id: string; title: string }[]).forEach((t) => { title[t.id] = t.title === SAMPLE_TITLE ? SAMPLE_NAME : t.title; });
+  const canOpen = (id: string) => id in title;
+  const here = threadOf(asked, canOpen);
   return NextResponse.json({
-    messages: (data ?? []).reverse().map((m) => ({ id: m.id, mine: !m.from_admin, body: m.body, picture: !!m.picture_path, at: m.created_at })),
+    thread: here,
+    messages: rows.filter((m) => threadOf(m.trip_id, canOpen) === here).reverse().map((m) => ({ id: m.id, mine: !m.from_admin, body: m.body, picture: !!m.picture_path, at: m.created_at })),
+    elsewhere: unreadElsewhere(rows, here, canOpen).map((e) => ({ ...e, title: e.trip ? title[e.trip] : null })),
   });
 }
 
@@ -66,7 +88,9 @@ export async function POST(req: NextRequest) {
   }
 
   const screen = safeScreen(form.get("screen"));
-  const tripId = tripFromScreen(screen);
+  // The thread on screen (the sheet sends it); a page loaded before threads existed sends only the screen.
+  const asked = form.has("trip") ? form.get("trip") : tripFromScreen(screen);
+  const tripId = isUuid(asked) ? asked : null;
   const [{ data: trip }, { data: profile }, { data: lastError }] = await Promise.all([
     // Through their own session: RLS decides whether they can see the journey at all.
     tripId ? supabase.from("trips").select("id, user_id").eq("id", tripId).maybeSingle() : Promise.resolve({ data: null }),
@@ -86,7 +110,7 @@ export async function POST(req: NextRequest) {
     error_id: lastError?.id ?? null,
     code: messageCode(id),
   };
-  const { error: insErr } = await db.from("help_messages").insert({ id, user_id: user.id, body, picture_path: picturePath, context });
+  const { error: insErr } = await db.from("help_messages").insert({ id, user_id: user.id, trip_id: trip?.id ?? null, body, picture_path: picturePath, context });
   // Two taps at once, or an id that is someone else's: never read theirs back.
   if (insErr) return NextResponse.json({ error: "Couldn't send that. Try again." }, { status: 503 });
 

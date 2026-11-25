@@ -35,7 +35,7 @@ export const SCHEMA: Record<string, string[]> = {
   days: ["id", "trip_id", "date", "day_number", "day_name", "narrative_position", "theme", "created_at"],
   find_cache: ["key", "results", "created_at"],
   documents: ["id", "trip_id", "user_id", "file_name", "file_type", "document_type", "parsed_data", "card_ids", "created_at"],
-  help_messages: ["id", "user_id", "from_admin", "body", "picture_path", "context", "alerted", "read_at", "created_at"],
+  help_messages: ["id", "user_id", "from_admin", "body", "picture_path", "context", "alerted", "read_at", "created_at", "trip_id"],
   ideas: ["id", "user_id", "url", "title", "note", "source", "status", "created_at", "tags", "wishlist_destination_id", "pins_added", "pinned_trip_id", "place"],
   people: ["id", "trip_id", "name", "birthdate", "notes", "position", "created_at", "updated_at"],
   places: ["id", "user_id", "google_place_id", "title", "type", "sub_type", "lat", "lng", "address", "cover_image_url", "phone", "website", "hours", "rating", "price_level", "details", "archived", "archived_at", "created_at", "updated_at", "loved", "loved_at", "photo_cache", "photo_count"],

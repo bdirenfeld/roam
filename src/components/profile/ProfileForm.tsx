@@ -10,6 +10,7 @@
 // header, `flex-1 min-h-0 overflow-y-auto` body carrying every input.
 
 import HelpDot from "@/components/help/HelpDot";
+import AdminDoor from "@/components/help/AdminDoor";
 import { openHelp } from "@/lib/help/unread";
 import { useEffect, useState } from "react";
 import Image from "next/image";
@@ -186,6 +187,7 @@ export default function ProfileForm({ initial = null, variant = "page", onDismis
               Message us
               <HelpDot className="top-1.5 -right-2" />
             </button>
+            <AdminDoor className="text-sm font-semibold text-gray-600 min-h-[44px] inline-flex items-center" />
             <GuideLink className="text-sm font-semibold text-gray-400 hover:text-gray-500 transition-colors">
               How Roam works
             </GuideLink>
