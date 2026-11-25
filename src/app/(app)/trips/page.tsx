@@ -16,8 +16,55 @@ import { FAMILY_DATES } from "@/lib/yearView/familyDates";
 import { isHouseholdOwner } from "@/lib/household";
 import CollapsibleSection from "@/components/trip/CollapsibleSection";
 import { getAuthUser } from "@/lib/supabase/authUser";
+import { tripMarks, type BookingMark } from "@/lib/booking/marks";
+import type { CheckCard } from "@/lib/booking/checklist";
+import { SAMPLE_TITLE } from "@/lib/sampleTrip/itinerary";
 
 const COVER_WAIT_MS = 400;
+// Booking marks are worked out for the nearest few upcoming journeys only: each
+// costs two small queries, and nobody is booking flights for an eighth trip out.
+const MARKS_MAX_TRIPS = 6;
+
+type Server = Awaited<ReturnType<typeof createClient>>;
+
+/**
+ * The booking marks for the owner's upcoming journeys (25 Nov 2026): the same
+ * reading as the Bookings sheet (lib/booking/marks → checklistRows), from the
+ * cards on each journey's days. Any failure means no marks; Journeys never
+ * waits on, or breaks over, an icon.
+ */
+async function loadBookingMarks(supabase: Server, userId: string, trips: Trip[], daysByTrip: Record<string, { id: string; date: string }[]>): Promise<Record<string, BookingMark[]>> {
+  const out: Record<string, BookingMark[]> = {};
+  if (trips.length === 0) return out;
+  try {
+    const [{ data: me }, perTrip] = await Promise.all([
+      supabase.from("users").select("home_airport, home_country, passport_country").eq("id", userId).maybeSingle(),
+      Promise.all(trips.map((t) => Promise.all([
+        supabase.from("cards").select("id, day_id, place_id, status, confirmed, start_time, end_time, details, place:places(sub_type, title, address)").eq("trip_id", t.id).not("day_id", "is", null),
+        supabase.from("people").select("birthdate").eq("trip_id", t.id),
+      ]))),
+    ]);
+    const home = {
+      airport: (me?.home_airport as string | null) ?? null,
+      country: (me?.home_country as string | null) ?? null,
+      passport: (me?.passport_country as string | null) ?? null,
+    };
+    trips.forEach((t, i) => {
+      const [cards, people] = perTrip[i];
+      if (cards.error) return;
+      out[t.id] = tripMarks({
+        trip: { destination: t.destination ?? "", start_date: t.start_date, end_date: t.end_date, party_size: t.party_size, party_ages: t.party_ages, booking_checklist: t.booking_checklist ?? null },
+        home,
+        days: daysByTrip[t.id] ?? [],
+        cards: (cards.data ?? []) as unknown as CheckCard[],
+        birthdates: ((people.data ?? []) as { birthdate: string | null }[]).map((p) => p.birthdate),
+      });
+    });
+  } catch (e) {
+    console.error("[journeys] booking marks", e);
+  }
+  return out;
+}
 
 export default async function TripsPage() {
   const supabase = await createClient();
@@ -89,6 +136,13 @@ export default async function TripsPage() {
   const past = trips?.filter((t: Trip) => !t.archived && isPastJourney(t)) ?? [];
   const archivedTrips = trips?.filter((t: Trip) => t.archived === true) ?? [];
 
+  // The booking marks on each upcoming photo: the owner's own journeys, on a
+  // computer (the phone's card is shorter and its caption wraps; not drawn there yet).
+  const marked = phone || !user ? [] : upcoming
+    .filter((t: Trip) => t.user_id === user.id && t.title !== SAMPLE_TITLE && t.start_date && t.end_date)
+    .slice(0, MARKS_MAX_TRIPS);
+  const marksByTrip = await loadBookingMarks(supabase, user?.id ?? "", marked, daysByTrip);
+
   // Until there is a journey besides the example, the first screen shows.
   const firstSample: Trip | null = (trips ?? []).find((t: Trip) => t.user_id === user?.id) ?? null;
 
@@ -116,7 +170,7 @@ export default async function TripsPage() {
               {upcoming.length > 0 && (
                 <div className="space-y-3 mb-8 md:space-y-0 md:grid md:grid-cols-2 md:gap-7 md:mb-14">
                   {upcoming.map((trip: Trip) => (
-                    <TripCard key={trip.id} trip={trip} href={hrefByTrip[trip.id]} owner={trip.user_id === user?.id} />
+                    <TripCard key={trip.id} trip={trip} href={hrefByTrip[trip.id]} owner={trip.user_id === user?.id} marks={marksByTrip[trip.id]} />
                   ))}
                 </div>
               )}

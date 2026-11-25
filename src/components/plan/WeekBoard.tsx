@@ -139,6 +139,14 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
     window.addEventListener("roam:open-bookings", onOpen);
     return () => window.removeEventListener("roam:open-bookings", onOpen);
   }, []);
+  // Journeys' booking marks land here with ?bookings=1 (25 Nov 2026): open
+  // Bookings once and drop the flag, so a reload or a closed sheet does not
+  // bring it back.
+  useEffect(() => {
+    if (searchParams.get("bookings") !== "1") return;
+    setShowDocs(true);
+    router.replace("/trips/" + trip.id + "/plan");
+  }, [searchParams, router, trip.id]);
   // Upload a booking from the week (1 Oct 2026): a new journey's Start here,
   // and Bookings' Upload, which did nothing here. The cards land on their days.
   const upload = useBookingUpload({

@@ -2647,3 +2647,9 @@ Pictures: redrawn as JPEG on the device (drops location), private bucket `help-p
 Clarity recording (`feedback` = RM-XXXXXX). Delete account removes the rows and pictures by name.
 Apply migration 022 BEFORE the push: until it exists, Help says "Couldn't load your messages".
 No grey helper text in this sheet, no "what's sent" link (his ruling); the privacy page carries it.
+
+## Journeys: booking marks on the photo (25 Nov 2026)
+- Each upcoming journey the signed-in person OWNS shows three marks in the photo's corner on a computer: flight, hotel, car (`ui/BookingMarks`, Google Material Symbols as inline paths, no icon font). Booked = near-white with a small green tick; still to book = faint; "Not needed" = no mark. `lib/booking/marks` `tripMarks` reads `checklistRows`, so the card and the Bookings sheet cannot disagree.
+- One link for all three, a SIBLING of the card's link (never nested), to `/trips/{id}/plan?bookings=1`; `WeekBoard` opens Bookings once and drops the flag. A click never ticks anything.
+- His rulings on the way here (seven mocks): hero photos, a map panel, white strips under the photo, pills with words and white discs were all too busy or "too aggressive"; he wanted the page left as it is plus this one thing. Use the icons everyone knows (he rejected a hand-drawn bed and a building for stays). Do not re-propose a Journeys redesign.
+- `trips/page.tsx` `loadBookingMarks`: nearest 6 owned upcoming journeys, two queries each, any failure = no marks. Not on the phone (its card is shorter and the caption wraps), not for guests, not for the Example.
