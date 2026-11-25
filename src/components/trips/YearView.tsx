@@ -14,7 +14,6 @@
 // and cached at module level — the page render never waits on it.
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { yearHasRoom } from "@/lib/journeys/split";
 import { getAuthUser } from "@/lib/supabase/authUser";
 import { useToast } from "@/components/ui/Toast";
 import type { CSSProperties } from "react";
@@ -313,21 +312,6 @@ export default function YearView({ trips, familyDates }: Props) {
   const { toast } = useToast();
   const SAVE_FAILED = "Couldn't save that. Try again.";
   const rootRef = useRef<HTMLElement | null>(null);
-  // Strip or list by the room Your year actually has, not the window's width
-  // (25 Nov 2026): beside the Journeys map it can sit in a narrow column on a
-  // wide screen. The base classes are the narrow shape (the phone's list); the
-  // [data-yv=wide] ones are the 12-month strip (lib/journeys/split yearHasRoom).
-  const [roomy, setRoomy] = useState(true);
-  useEffect(() => {
-    const el = rootRef.current;
-    if (openState !== true || !el) return;
-    const measure = () => setRoomy(yearHasRoom(el.getBoundingClientRect().width));
-    measure();
-    if (typeof ResizeObserver === "undefined") return;
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [openState]);
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showUndo = (label: string, restore: () => Promise<void>) => {
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
@@ -1033,7 +1017,6 @@ export default function YearView({ trips, familyDates }: Props) {
       {isOpen && (
     <section
       ref={rootRef}
-      data-yv={roomy ? "wide" : "narrow"}
       className="mx-4 mt-3 md:mx-0 md:mt-4 rounded-[14px]"
       style={{ border: "1px solid rgba(26,26,46,0.08)", background: CARD_BG }}
     >
@@ -1071,7 +1054,7 @@ export default function YearView({ trips, familyDates }: Props) {
             On a phone it was five lanes of sideways swiping to reach what
             the Open-windows list already says, so mobile gets the list +
             heat row + ideal pills instead. */}
-        <div className="hidden [[data-yv=wide]_&]:block order-2 [[data-yv=wide]_&]:order-1">
+        <div className="hidden md:block order-2 md:order-1">
               {/* Month header — year shown where it changes */}
               <div style={GRID} className="mt-1.5">
                 <div style={LABEL_CELL} />
@@ -1470,7 +1453,7 @@ export default function YearView({ trips, familyDates }: Props) {
             Ideal windows as a plain wrapped pill row, and the heat row as a
             6×2 grid (12 narrow cells don't survive a 390px screen). */}
         <div
-          className={`[[data-yv=wide]_&]:hidden order-3 ${openWindows.length > 0 ? "mt-2.5 pt-2.5" : ""}`}
+          className={`md:hidden order-3 ${openWindows.length > 0 ? "mt-2.5 pt-2.5" : ""}`}
           style={openWindows.length > 0 ? { borderTop: LANE_BORDER } : undefined}
         >
           <div className="flex items-center flex-wrap gap-1.5">
@@ -1606,7 +1589,7 @@ export default function YearView({ trips, familyDates }: Props) {
             the rows flow into two columns so the section uses the card's
             width instead of leaving a sea of parchment on the right. */}
         {openWindows.length > 0 && (
-          <div className="order-1 [[data-yv=wide]_&]:order-2 [[data-yv=wide]_&]:mt-2 [[data-yv=wide]_&]:pt-1.5 [[data-yv=wide]_&]:border-t [[data-yv=wide]_&]:border-[rgba(26,26,46,0.06)]">
+          <div className="order-1 md:order-2 md:mt-2 md:pt-1.5 md:border-t md:border-[rgba(26,26,46,0.06)]">
               <div className="flex items-baseline justify-between">
                 <div
                   style={{
@@ -1625,7 +1608,7 @@ export default function YearView({ trips, familyDates }: Props) {
                 {idealInWindow.length === 0 && (
                   <button
                     onClick={openAddSheet}
-                    className="hidden [[data-yv=wide]_&]:flex items-center"
+                    className="hidden md:flex items-center"
                     style={{
                       fontSize: 10,
                       fontWeight: 600,
@@ -1638,7 +1621,7 @@ export default function YearView({ trips, familyDates }: Props) {
                   </button>
                 )}
               </div>
-              <div className="mt-1 [[data-yv=wide]_&]:columns-2 [[data-yv=wide]_&]:gap-x-10">
+              <div className="mt-1 md:columns-2 md:gap-x-10">
                 {openWindows.map((w, i) => {
                   // Tiny month prefix on the first row of each month so the
                   // eye can jump straight to "MAR" in a ~11-row list

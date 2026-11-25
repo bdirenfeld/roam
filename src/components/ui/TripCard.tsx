@@ -14,7 +14,7 @@ import { tripCountdown } from "@/lib/trips/countdown";
 import { localDate } from "@/lib/isSameLocalDay";
 import Pieces from "./Pieces";
 import BookingMarks, { MARKS_ROOM } from "./BookingMarks";
-import type { BookingMark } from "@/lib/booking/marks";
+import { bookingsHref, type BookingMark } from "@/lib/booking/marks";
 import JourneyMenu from "./JourneyMenu";
 import CopyJourneySheet from "@/components/trip/CopyJourneySheet";
 import type { Trip } from "@/types/database";
@@ -30,6 +30,9 @@ interface Props {
   owner?: boolean;
   /** Flights, stays, car: booked or not, in the photo's corner (25 Nov 2026). Absent: none drawn. */
   marks?: BookingMark[];
+  /** A phone: the marks go in the photo's top corner and lead to this day (null: no link). */
+  marksPhoneDayId?: string | null;
+  phone?: boolean;
 }
 
 function tripNights(start: string, end: string): number {
@@ -52,7 +55,7 @@ function formatDateCompact(start: string, end: string): string {
   return `${sMonth} ${sDay} – ${eMonth} ${eDay} · ${nightsStr}`;
 }
 
-export default function TripCard({ trip, href, owner = false, marks }: Props) {
+export default function TripCard({ trip, href, owner = false, marks, marksPhoneDayId, phone = false }: Props) {
   const router = useRouter();
   const [menuOpen,      setMenuOpen]      = useState(false);
   const { open: openSettings } = useTripSettings();
@@ -139,7 +142,7 @@ export default function TripCard({ trip, href, owner = false, marks }: Props) {
 
               {/* With booking marks in the corner the caption keeps clear of them: a long
                   one wraps before the icons instead of running under them. */}
-              <div className={`absolute inset-x-0 bottom-0 px-4 pb-3.5 ${marks?.length ? MARKS_ROOM : ""}`} data-testid="trip-caption">
+              <div className={`absolute inset-x-0 bottom-0 px-4 pb-3.5 ${marks?.length && !phone ? MARKS_ROOM : ""}`} data-testid="trip-caption">
                 <h3 className="text-[19px] md:text-xl font-normal text-white leading-snug">
                   {isSample ? SAMPLE_NAME : trip.title}
                 </h3>
@@ -159,7 +162,14 @@ export default function TripCard({ trip, href, owner = false, marks }: Props) {
 
         {/* Beside the card's link, never inside it (a link in a link is not allowed):
             the three marks are their own door, to this journey's Bookings. */}
-        {marks && <BookingMarks tripId={trip.id} title={isSample ? SAMPLE_NAME : trip.title} marks={marks} />}
+        {marks && (
+          <BookingMarks
+            title={isSample ? SAMPLE_NAME : trip.title}
+            marks={marks}
+            corner={phone ? "top" : "bottom"}
+            href={phone ? (marksPhoneDayId ? bookingsHref(trip.id, marksPhoneDayId) : null) : bookingsHref(trip.id)}
+          />
+        )}
 
         {/* ··· menu — one deliberate door for manage actions. Hover-reveal on
             desktop; always visible on touch (the old pencil was unreachable

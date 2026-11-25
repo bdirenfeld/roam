@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import journeys from "./fixtures/journeys.json";
 import { checklistRows, type CheckInput } from "./checklist";
-import { bookingMarks, bookingsHref, markLabel, marksLabel, tripMarks } from "./marks";
+import { bookingMarks, bookingsHref, markLabel, marksLabel, takeBookingsFlag, tripMarks } from "./marks";
 
 // The same real journeys the checklist is tested on (pulled 6 Oct 2026).
 type J = CheckInput & { title: string };
@@ -52,5 +52,17 @@ describe("the booking marks on a journey's card", () => {
 
   it("a click goes to the week with Bookings open", () => {
     expect(bookingsHref("abc")).toBe("/trips/abc/plan?bookings=1");
+  });
+
+  it("on a phone a tap goes to the day it would open anyway, with Bookings open", () => {
+    expect(bookingsHref("abc", "d7")).toBe("/trips/abc/days/d7?bookings=1");
+    expect(bookingsHref("abc", null)).toBe("/trips/abc/plan?bookings=1");
+  });
+
+  it("the flag opens Bookings once: it is read, then taken off the address", () => {
+    expect(takeBookingsFlag("https://roam.app/trips/abc/days/d7?bookings=1")).toEqual({ open: true, clean: "/trips/abc/days/d7" });
+    expect(takeBookingsFlag("https://roam.app/trips/abc/days/d7?bookings=1&pin=9#x")).toEqual({ open: true, clean: "/trips/abc/days/d7?pin=9#x" });
+    expect(takeBookingsFlag("https://roam.app/trips/abc/days/d7")).toEqual({ open: false, clean: "/trips/abc/days/d7" });
+    expect(takeBookingsFlag("https://roam.app/trips/abc/days/d7?bookings=0")).toEqual({ open: false, clean: "/trips/abc/days/d7" });
   });
 });

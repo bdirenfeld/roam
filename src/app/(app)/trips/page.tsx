@@ -19,7 +19,7 @@ import { getAuthUser } from "@/lib/supabase/authUser";
 import { tripMarks, type BookingMark } from "@/lib/booking/marks";
 import type { CheckCard } from "@/lib/booking/checklist";
 import { SAMPLE_TITLE } from "@/lib/sampleTrip/itinerary";
-import JourneysSplit from "@/components/trips/JourneysSplit";
+import JourneysMapButton from "@/components/trips/JourneysMapButton";
 import { journeyDots, showsMap } from "@/lib/journeys/mapDots";
 
 const COVER_WAIT_MS = 400;
@@ -138,17 +138,16 @@ export default async function TripsPage() {
   const past = trips?.filter((t: Trip) => !t.archived && isPastJourney(t)) ?? [];
   const archivedTrips = trips?.filter((t: Trip) => t.archived === true) ?? [];
 
-  // The booking marks on each upcoming photo: the owner's own journeys, on a
-  // computer (the phone's card is shorter and its caption wraps; not drawn there yet).
-  const marked = phone || !user ? [] : upcoming
+  // The booking marks on each upcoming photo: the owner's own journeys. On a
+  // phone they sit in the photo's top corner (ui/BookingMarks).
+  const marked = !user ? [] : upcoming
     .filter((t: Trip) => t.user_id === user.id && t.title !== SAMPLE_TITLE && t.start_date && t.end_date)
     .slice(0, MARKS_MAX_TRIPS);
   const marksByTrip = await loadBookingMarks(supabase, user?.id ?? "", marked, daysByTrip);
 
-  // The map beside the journeys (25 Nov 2026): a computer only, and only once
-  // there are two journeys to put on it. Archived ones and the Example stay off.
-  const dots = phone ? [] : journeyDots(upcoming as Trip[], past as Trip[], hrefByTrip, SAMPLE_TITLE);
-  const split = showsMap(dots);
+  // The map of every journey (25 Nov 2026), behind a Map button once there
+  // are two to put on it. Archived ones and the Example stay off.
+  const dots = journeyDots(upcoming as Trip[], past as Trip[], hrefByTrip, SAMPLE_TITLE);
 
   // Until there is a journey besides the example, the first screen shows.
   const firstSample: Trip | null = (trips ?? []).find((t: Trip) => t.user_id === user?.id) ?? null;
@@ -156,10 +155,12 @@ export default async function TripsPage() {
   // The year strip only means anything once a journey has real dates.
   const hasDatedTrips = (trips ?? []).some((t: Trip) => t.start_date && t.end_date);
 
-  const body = (
-      // Desktop bounded column; mobile passes through. Beside the map (lg up)
-      // the column is the left side: it fills it and keeps a smaller gutter.
-      <div className={`md:max-w-[1100px] md:mx-auto md:px-14 md:pt-10 md:pb-12 ${split ? "lg:max-w-none lg:mx-0 lg:px-8 lg:pt-7" : ""}`}>
+  return (
+    <div>
+      <AppHeader avatarUrl={profile?.avatar_url} showNewTrip />
+
+      {/* Desktop bounded column; mobile passes through */}
+      <div className="md:max-w-[1100px] md:mx-auto md:px-14 md:pt-10 md:pb-12">
 
         {/* No page heading. Both headers already say Journeys immediately
             above this, and repeating it cost a line for nothing. */}
@@ -173,9 +174,9 @@ export default async function TripsPage() {
             <>
               {/* Upcoming — stacked on mobile, 2-up grid on desktop */}
               {upcoming.length > 0 && (
-                <div className={`space-y-3 mb-8 md:space-y-0 md:grid md:grid-cols-2 md:gap-7 md:mb-14 ${split ? "lg:grid-cols-[repeat(auto-fill,minmax(340px,1fr))] lg:gap-5 lg:mb-10" : ""}`}>
+                <div className="space-y-3 mb-8 md:space-y-0 md:grid md:grid-cols-2 md:gap-7 md:mb-14">
                   {upcoming.map((trip: Trip) => (
-                    <TripCard key={trip.id} trip={trip} href={hrefByTrip[trip.id]} owner={trip.user_id === user?.id} marks={marksByTrip[trip.id]} />
+                    <TripCard key={trip.id} trip={trip} href={hrefByTrip[trip.id]} owner={trip.user_id === user?.id} marks={marksByTrip[trip.id]} phone={phone} marksPhoneDayId={openDayByTrip[trip.id] ?? null} />
                   ))}
                 </div>
               )}
@@ -231,12 +232,7 @@ export default async function TripsPage() {
           )}
         </div>
       </div>
-  );
-
-  return (
-    <div>
-      <AppHeader avatarUrl={profile?.avatar_url} showNewTrip />
-      {split ? <JourneysSplit dots={dots}>{body}</JourneysSplit> : body}
+      {showsMap(dots) && <JourneysMapButton dots={dots} phone={phone} />}
     </div>
   );
 }

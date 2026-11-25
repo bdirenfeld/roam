@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { bookingsHref, markLabel, marksLabel, type BookingMark } from "@/lib/booking/marks";
+import { markLabel, marksLabel, type BookingMark } from "@/lib/booking/marks";
 import type { RowKey } from "@/lib/booking/checklist";
 
 // The three booking marks in the corner of a journey's photo on Journeys
@@ -21,18 +21,26 @@ const PATHS: Record<RowKey, string> = {
 /** The room the marks take at the caption's right, so a long caption wraps before them. */
 export const MARKS_ROOM = "pr-[112px]";
 
-export default function BookingMarks({ tripId, title, marks }: { tripId: string; title: string; marks: BookingMark[] }) {
+// On a phone (25 Nov 2026, clickable mock approved) the marks sit in the photo's
+// TOP corner: the card is shorter there and its caption wraps along the bottom.
+// The top of a photo is often bright sky, so they carry a soft shadow and the
+// faint ones are a little less faint. The whole group is one 36px-tall target.
+const CORNER = {
+  bottom: "absolute right-[10px] bottom-[7px] z-[1] flex items-center gap-[11px] rounded-full px-2 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white",
+  top: "absolute left-[6px] top-[5px] z-[1] flex items-center gap-[11px] rounded-full px-2 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white",
+} as const;
+
+export default function BookingMarks({ title, marks, href, corner = "bottom" }: { title: string; marks: BookingMark[]; /** Bookings for this journey; null draws the marks without a link. */ href: string | null; corner?: "bottom" | "top" }) {
   if (marks.length === 0) return null;
-  return (
-    <Link
-      href={bookingsHref(tripId)}
-      aria-label={marksLabel(title, marks)}
-      data-testid="booking-marks"
-      className="absolute right-[10px] bottom-[7px] z-[1] flex items-center gap-[11px] rounded-full px-2 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
-    >
+  const faint = corner === "top" ? "rgba(255,255,255,0.55)" : "rgba(255,255,255,0.4)";
+  const shared = { "aria-label": marksLabel(title, marks), "data-testid": "booking-marks", "data-corner": corner, className: CORNER[corner], style: corner === "top" ? { filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.35))" } : undefined };
+  const icons = (
+    <>
+      {/* On a phone the group is 36px tall; its target reaches 44. */}
+      {corner === "top" && <span aria-hidden="true" data-testid="booking-marks-target" className="absolute inset-x-0 -inset-y-1" />}
       {marks.map((m) => (
         <span key={m.key} title={markLabel(m)} data-mark={m.key} data-booked={m.booked ? "yes" : "no"} className="relative block h-5 w-5">
-          <svg aria-hidden="true" viewBox="0 -960 960 960" width="20" height="20" fill="currentColor" style={{ color: m.booked ? "rgba(255,255,255,0.92)" : "rgba(255,255,255,0.4)" }}>
+          <svg aria-hidden="true" viewBox="0 -960 960 960" width="20" height="20" fill="currentColor" style={{ color: m.booked ? "rgba(255,255,255,0.92)" : faint }}>
             <path d={PATHS[m.key]} />
           </svg>
           {m.booked && (
@@ -42,6 +50,7 @@ export default function BookingMarks({ tripId, title, marks }: { tripId: string;
           )}
         </span>
       ))}
-    </Link>
+    </>
   );
+  return href ? <Link href={href} {...shared}>{icons}</Link> : <div role="img" {...shared}>{icons}</div>;
 }

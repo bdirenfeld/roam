@@ -35,7 +35,22 @@ export function marksLabel(title: string, marks: BookingMark[]): string {
   return `Bookings for ${title}: ${said.join(", ")}`;
 }
 
-/** Where a click on the marks goes: the week, with Bookings open (WeekBoard reads ?bookings=1). */
-export function bookingsHref(tripId: string): string {
-  return `/trips/${tripId}/plan?bookings=1`;
+/**
+ * Where a click on the marks goes: the journey with Bookings open. A computer
+ * opens the week (WeekBoard reads ?bookings=1); a phone opens the day it would
+ * have opened anyway (DayViewClient reads the same flag).
+ */
+export function bookingsHref(tripId: string, phoneDayId?: string | null): string {
+  return phoneDayId ? `/trips/${tripId}/days/${phoneDayId}?bookings=1` : `/trips/${tripId}/plan?bookings=1`;
+}
+
+/**
+ * Reads the ?bookings=1 flag off an address: whether to open Bookings, and the
+ * address without the flag, so a reload or a closed sheet does not bring it back.
+ */
+export function takeBookingsFlag(href: string): { open: boolean; clean: string } {
+  const u = new URL(href, "http://roam.local");
+  const open = u.searchParams.get("bookings") === "1";
+  u.searchParams.delete("bookings");
+  return { open, clean: u.pathname + u.search + u.hash };
 }

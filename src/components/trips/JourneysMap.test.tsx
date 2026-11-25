@@ -124,3 +124,40 @@ describe("the Journeys map", () => {
     expect(fake.markers).toEqual([]);
   });
 });
+
+describe("the Journeys map on a phone", () => {
+  const mountPhone = async () => {
+    const r = render(<JourneysMap dots={dots} phone />);
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); });
+    return r;
+  };
+  const rows = () => Array.from(screen.getByTestId("journeys-map-rows").querySelectorAll("[data-journey-row]"));
+
+  it("lists the journeys on the map under it, the ones coming up first, each a link to its journey", async () => {
+    await mountPhone();
+    expect(rows().map((r) => r.getAttribute("data-journey-row"))).toEqual(["tus", "voss", "rome", "aus"]);
+    expect(rows()[0].getAttribute("href")).toBe("/trips/tus/plan");
+    expect(rows()[0].textContent).toContain("Aug 24 – Sep 5, 2027");
+  });
+
+  it("the buttons narrow the list and the dots together", async () => {
+    await mountPhone();
+    fireEvent.click(screen.getByRole("button", { name: "2026" }));
+    expect(rows().map((r) => r.getAttribute("data-journey-row"))).toEqual(["rome", "aus"]);
+    expect(ids()).toEqual(["aus", "rome"]);
+  });
+
+  it("a dot picks out its row instead of floating a card over the small map", async () => {
+    await mountPhone();
+    fireEvent.click(fake.markers.find((m) => m.getAttribute("data-dot") === "rome")!);
+    expect(screen.queryByTestId("journey-dot-card")).toBeNull();
+    expect(rows().filter((r) => r.getAttribute("aria-current") === "true").map((r) => r.getAttribute("data-journey-row"))).toEqual(["rome"]);
+    act(() => fake.handlers.click());
+    expect(rows().some((r) => r.getAttribute("aria-current") === "true")).toBe(false);
+  });
+
+  it("a dot is a thumb-sized target", async () => {
+    await mountPhone();
+    expect(fake.markers.every((m) => m.className.includes("h-11") && m.className.includes("w-11"))).toBe(true);
+  });
+});

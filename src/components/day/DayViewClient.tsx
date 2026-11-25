@@ -23,6 +23,7 @@ import { autoDayTitle } from "@/lib/autoDayTitle";
 import { dayChip, spansMonths } from "@/lib/dayChip";
 import { givenTimesLine } from "@/lib/plan/givenTimes";
 import DayMap from "@/components/day/DayMap";
+import { takeBookingsFlag } from "@/lib/booking/marks";
 import CardTimeline from "@/components/day/CardTimeline";
 import StartHere from "@/components/plan/StartHere";
 import TripUnderwayVideo from "@/components/videos/TripUnderwayVideo";
@@ -441,6 +442,14 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards: st
     const onOpen = () => setShowDocs(true);
     window.addEventListener("roam:open-bookings", onOpen);
     return () => window.removeEventListener("roam:open-bookings", onOpen);
+  }, []);
+  // Journeys' booking marks on a phone land here with ?bookings=1 (25 Nov
+  // 2026): open Bookings once and drop the flag (lib/booking/marks).
+  useEffect(() => {
+    const { open, clean } = takeBookingsFlag(window.location.href);
+    if (!open) return;
+    setShowDocs(true);
+    window.history.replaceState(window.history.state, "", clean);
   }, []);
   // Guests get Bookings too — the villa confirmation and the flight are
   // theirs to read; only the upload is the owner's.

@@ -28,7 +28,7 @@ afterEach(cleanup);
 
 describe("the booking marks on a journey's card", () => {
   it("draws flight, hotel, car in that order, and ticks only what is booked", () => {
-    render(<BookingMarks tripId="t1" title="Chris Voss Training" marks={voss} />);
+    render(<BookingMarks href="/trips/t1/plan?bookings=1" title="Chris Voss Training" marks={voss} />);
     const marks = Array.from(screen.getByTestId("booking-marks").querySelectorAll("[data-mark]"));
     expect(marks.map((m) => [m.getAttribute("data-mark"), m.getAttribute("data-booked")])).toEqual([["flights", "no"], ["stays", "yes"], ["car", "no"]]);
     // The tick is the small green dot: one, on the stay.
@@ -37,14 +37,14 @@ describe("the booking marks on a journey's card", () => {
   });
 
   it("is one link to that journey's Bookings, named in words", () => {
-    render(<BookingMarks tripId="t1" title="Chris Voss Training" marks={voss} />);
+    render(<BookingMarks href="/trips/t1/plan?bookings=1" title="Chris Voss Training" marks={voss} />);
     const link = screen.getByTestId("booking-marks");
     expect(link.getAttribute("href")).toBe("/trips/t1/plan?bookings=1");
     expect(link.getAttribute("aria-label")).toBe("Bookings for Chris Voss Training: flights still to book, stays booked, car still to book");
   });
 
   it("a row marked Not needed arrives as no mark, and no marks draws nothing", () => {
-    const { container } = render(<BookingMarks tripId="t1" title="x" marks={[]} />);
+    const { container } = render(<BookingMarks href="/trips/t1/plan?bookings=1" title="x" marks={[]} />);
     expect(container.innerHTML).toBe("");
   });
 
@@ -56,7 +56,34 @@ describe("the booking marks on a journey's card", () => {
     expect(screen.getByTestId("trip-caption").className).toContain(MARKS_ROOM);
   });
 
-  it("a card given no marks (a guest's journey, a phone) is the card as it was", () => {
+  it("on the card on a computer the marks lead to the week with Bookings open", () => {
+    render(<TripCard trip={trip} href="/trips/t1/plan" owner marks={voss} />);
+    const link = screen.getByTestId("booking-marks");
+    expect(link.getAttribute("href")).toBe("/trips/t1/plan?bookings=1");
+    expect(link.getAttribute("data-corner")).toBe("bottom");
+  });
+
+  it("on a phone the marks sit in the photo's top corner, lead to the day with Bookings open, and the caption keeps its full width", () => {
+    render(<TripCard trip={trip} href="/trips/t1/days/d2" owner marks={voss} phone marksPhoneDayId="d2" />);
+    const link = screen.getByTestId("booking-marks");
+    expect(link.tagName).toBe("A");
+    expect(link.getAttribute("data-corner")).toBe("top");
+    expect(link.className).toContain("top-[5px]");
+    expect(link.getAttribute("href")).toBe("/trips/t1/days/d2?bookings=1");
+    expect(link.closest("article")).toBeNull();
+    expect(screen.getByTestId("trip-caption").className).not.toContain(MARKS_ROOM);
+  });
+
+  it("on a phone with no day to open, the marks still show what is booked but are not a link", () => {
+    render(<TripCard trip={trip} href="/trips/t1" owner marks={voss} phone marksPhoneDayId={null} />);
+    const marks = screen.getByTestId("booking-marks");
+    expect(marks.tagName).not.toBe("A");
+    expect(marks.getAttribute("href")).toBeNull();
+    expect(marks.getAttribute("aria-label")).toBe("Bookings for Chris Voss Training: flights still to book, stays booked, car still to book");
+    expect(marks.querySelectorAll("[data-mark]")).toHaveLength(3);
+  });
+
+  it("a card given no marks (a guest's journey) is the card as it was", () => {
     render(<TripCard trip={trip} href="/trips/t1/plan" />);
     expect(screen.queryByTestId("booking-marks")).toBeNull();
     expect(screen.getByTestId("trip-caption").className).not.toContain(MARKS_ROOM);
