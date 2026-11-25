@@ -21,7 +21,8 @@ import { listed, deviceOf } from "@/lib/videos/howTo";
 import { MAX_BODY, messageCode, safeScreen, tripFromScreen } from "@/lib/help/message";
 import { setHelpUnread } from "@/lib/help/unread";
 import { shrinkPicture } from "@/lib/help/picture";
-import { openMessenger, useMessengerReady } from "@/lib/help/messenger";
+import { initMessenger, openMessenger, useMessengerStatus } from "@/lib/help/messenger";
+import HelpDot from "./HelpDot";
 
 const INK = "#1A1A2E";
 const RULE = "rgba(26,26,46,0.10)";
@@ -54,12 +55,15 @@ export default function HelpSheet({ onClose, guest = false }: { onClose: () => v
   const { available } = useHowToVideos();
   const drag = useSheetDrag(onClose, undefined, { mobileOnly: true });
   useEscapeKey(onClose, !videos);
-  // Featurebase is running: writing happens there, and this sheet is the door plus the two rows.
-  const messenger = useMessengerReady();
+  // "ready": writing happens in the messenger, and this sheet is its two doors plus the rows.
+  // "unknown": still finding out, so neither chat shows yet. "off": Roam's own chat below.
+  const messenger = useMessengerStatus();
+  // Usually already answered by HelpHost; asking again is free and covers a sheet opened without it.
+  useEffect(() => { void initMessenger(); }, []);
   const hasVideos = listed(available, typeof navigator === "undefined" ? "computer" : deviceOf(navigator.userAgent)).length > 0;
 
   const load = useCallback(async () => {
-    if (messenger) { setState("ready"); return; }
+    if (messenger !== "off") { setState("ready"); return; }
     setState("loading");
     const res = await fetch(at.trip ? `/api/help?trip=${at.trip}` : "/api/help").catch(() => null);
     // Middleware sends a signed-out request to the sign-in page (a 307), so it arrives as a redirect.
@@ -154,12 +158,19 @@ export default function HelpSheet({ onClose, guest = false }: { onClose: () => v
           </button>
         </div>
         <div className="min-h-0 overflow-y-auto overscroll-contain px-5 pb-1">
-          {messenger && (
-            <button type="button" onClick={() => { onClose(); openMessenger(); }} className="w-full min-h-[48px] mb-3 rounded-xl text-[15px] font-semibold text-white" style={{ background: INK }}>
-              Message us
-            </button>
+          {messenger === "unknown" && <p role="status" className="min-h-[48px] flex items-center text-[15px]">Opening your messages…</p>}
+          {messenger === "ready" && (
+            <>
+              <button type="button" onClick={() => { onClose(); void openMessenger("new"); }} className="w-full min-h-[48px] mb-1 rounded-xl text-[15px] font-semibold text-white" style={{ background: INK }}>
+                Ask a question
+              </button>
+              <button type="button" onClick={() => { onClose(); void openMessenger("messages"); }} className={row}>
+                <span className="relative">Your messages<HelpDot className="-top-0.5 -right-3" /></span>
+                <span aria-hidden>›</span>
+              </button>
+            </>
           )}
-          {state !== "signed-out" && !messenger && (
+          {state !== "signed-out" && messenger === "off" && (
             <>
               {at.trip !== own && (
                 <div className="flex items-center gap-3 pb-2">

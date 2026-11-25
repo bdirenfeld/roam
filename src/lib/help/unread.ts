@@ -19,3 +19,6 @@ export const useHelpUnread = () => useSyncExternalStore(subscribeHelpUnread, get
 /** Opens Help from anywhere: HelpHost listens. */
 export const HELP_EVENT = "roam:help";
 export const openHelp = () => window.dispatchEvent(new CustomEvent(HELP_EVENT));
+/** Opens the Help SHEET itself (the doors and the rows), e.g. coming back from Walkthroughs. */
+export const HELP_SHEET_EVENT = "roam:help-sheet";
+export const openHelpSheet = () => window.dispatchEvent(new CustomEvent(HELP_SHEET_EVENT));

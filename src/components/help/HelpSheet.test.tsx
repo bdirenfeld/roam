@@ -10,16 +10,16 @@ vi.mock("@/components/ui/Toast", () => ({ useToast: () => said }));
 import HelpSheet, { HELP_FROM } from "./HelpSheet";
 import { JourneyGuidanceContext } from "@/components/onboarding/JourneyGuidanceContext";
 import { getHelpUnread, setHelpUnread } from "@/lib/help/unread";
-import { __resetMessenger, startMessenger } from "@/lib/help/messenger";
+import { __resetMessenger, initMessenger } from "@/lib/help/messenger";
 
-const fb = vi.hoisted(() => ({ show: vi.fn() }));
-vi.mock("featurebase-js", () => ({ default: () => {}, whenReady: () => {}, onUnreadCountChange: () => {}, show: () => fb.show() }));
+const fb = vi.hoisted(() => ({ messages: vi.fn(), fresh: vi.fn() }));
+vi.mock("featurebase-js", () => ({ default: () => {}, whenReady: (f: () => void) => f(), onUnreadCountChange: () => {}, showMessages: () => fb.messages(), showNewMessage: () => fb.fresh() }));
 
 const ok = (j: unknown, status = 200) => Promise.resolve({ ok: status < 300, status, json: () => Promise.resolve(j) });
 let server: (url: string, init?: { method?: string; body?: FormData }) => Promise<unknown>;
 const calls: { url: string; init?: { method?: string; body?: FormData } }[] = [];
 beforeEach(() => {
-  calls.length = 0; said.toast.mockClear(); sessionStorage.clear(); vids.available = {};
+  calls.length = 0; said.toast.mockClear(); sessionStorage.clear(); vids.available = {}; __resetMessenger("off"); fb.messages.mockClear(); fb.fresh.mockClear();
   server = () => ok({ messages: [] });
   vi.stubGlobal("fetch", (url: string, init?: { method?: string; body?: FormData }) => { calls.push({ url, init }); return server(url, init); });
 });
@@ -160,19 +160,36 @@ describe("Help", () => {
     expect(await screen.findByText("general note")).toBeTruthy();
   });
 
-  it("with the messenger running: one Message us button that opens it, no box of our own, the rows stay", async () => {
+  it("with the messenger running: a way to ask and a way back to past messages; no box of our own; the rows stay", async () => {
     vids.available = { "first-journey": 1 };
-    await startMessenger("jwt");
+    __resetMessenger();
+    server = () => ok({ jwt: "j" });
+    await initMessenger();
+    calls.length = 0;
     const onClose = vi.fn();
     render(<HelpSheet onClose={onClose} />);
-    const go = await screen.findByRole("button", { name: "Message us" });
+    const askBtn = await screen.findByRole("button", { name: "Ask a question" });
     expect(screen.queryByRole("textbox")).toBeNull();
-    expect(calls.some((c) => c.url.startsWith("/api/help"))).toBe(false);
+    expect(calls).toHaveLength(0);
     expect(screen.getByRole("button", { name: /How-to videos/ })).toBeTruthy();
-    fireEvent.click(go);
-    expect(onClose).toHaveBeenCalledTimes(1);
-    expect(fb.show).toHaveBeenCalledTimes(1);
+    fireEvent.click(askBtn);
+    await waitFor(() => expect(fb.fresh).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole("button", { name: /Your messages/ }));
+    await waitFor(() => expect(fb.messages).toHaveBeenCalledTimes(1));
+    expect(onClose).toHaveBeenCalledTimes(2);
+  });
+
+  it("while it is still finding out which chat is yours, it shows neither", async () => {
     __resetMessenger();
+    let answer: (v: unknown) => void = () => {};
+    server = () => new Promise((done) => { answer = done; });
+    void initMessenger();
+    render(<HelpSheet onClose={() => {}} />);
+    expect(await screen.findByText(/Opening your messages/)).toBeTruthy();
+    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Ask a question" })).toBeNull();
+    answer({ ok: true, status: 200, json: () => Promise.resolve({ jwt: null }) });
+    expect(await box()).toBeTruthy();
   });
 
   it("is masked from the recording", async () => {

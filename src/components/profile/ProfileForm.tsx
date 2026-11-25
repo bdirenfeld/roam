@@ -184,7 +184,7 @@ export default function ProfileForm({ initial = null, variant = "page", onDismis
           >
             {/* The phone's door to Help outside a journey (24 Nov 2026). */}
             <button type="button" onClick={() => { onDismiss?.(); openHelp(); }} className="relative text-sm font-semibold text-gray-600 min-h-[44px]">
-              Message us
+              Help and messages
               <HelpDot className="top-1.5 -right-2" />
             </button>
             <AdminDoor className="text-sm font-semibold text-gray-600 min-h-[44px] inline-flex items-center" />

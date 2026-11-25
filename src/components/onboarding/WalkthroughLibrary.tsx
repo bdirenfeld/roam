@@ -1,10 +1,10 @@
 'use client';
-import { CaretRight, X } from '@phosphor-icons/react';
+import { CaretLeft, CaretRight, X } from '@phosphor-icons/react';
 import Overlay from '@/components/ui/Overlay';
 import { GROUPS, LIST_ORDER, TOURS, listMark, type TourId, type TourRecord } from '@/lib/onboarding/walkthroughs';
 
 /** Section bands separate group labels from tappable walkthroughs on both devices. */
-export default function WalkthroughLibrary({ tours, firstJourney, firstStep, computer, onFirstJourney, onPick, onResetAll, onClose }: {
+export default function WalkthroughLibrary({ tours, firstJourney, firstStep, computer, onFirstJourney, onPick, onResetAll, onClose, onBack }: {
   tours: TourRecord;
   firstJourney: 'new' | 'underway' | 'done';
   firstStep: string;
@@ -13,6 +13,8 @@ export default function WalkthroughLibrary({ tours, firstJourney, firstStep, com
   onPick: (id: TourId) => void;
   onResetAll: () => void;
   onClose: () => void;
+  /** The list opens from Help, so it carries the way back to it (his finding, 24 Nov 2026). */
+  onBack?: () => void;
 }) {
   const ids = LIST_ORDER.filter(id => !TOURS[id].device || TOURS[id].device === (computer ? 'computer' : 'phone'));
   const row = (key: string, title: string, benefit: string, mark: string | null, onClick: () => void) => (
@@ -32,7 +34,10 @@ export default function WalkthroughLibrary({ tours, firstJourney, firstStep, com
   return (
     <Overlay label="Walkthroughs" onClose={onClose} widthClassName="md:w-[420px]">
       <div className="flex flex-shrink-0 items-center justify-between bg-parchment px-5 pt-3 pb-3">
-        <h2 className="font-display text-[23px] font-medium tracking-[-0.01em] text-activity">Walkthroughs</h2>
+        <div className="flex min-w-0 items-center">
+          {onBack && <button type="button" aria-label="Back to Help" className="-ml-3 grid h-11 w-11 place-items-center rounded-full hover:bg-activity/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-activity" onClick={onBack}><CaretLeft size={18} weight="bold" /></button>}
+          <h2 className="font-display text-[23px] font-medium tracking-[-0.01em] text-activity">Walkthroughs</h2>
+        </div>
         <button type="button" aria-label="Close" className="-mr-2 grid h-11 w-11 place-items-center rounded-full hover:bg-activity/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-activity" onClick={onClose}><X size={16} weight="light" /></button>
       </div>
       <div className="min-h-0 overflow-y-auto overflow-x-hidden bg-parchment px-5 pb-6 text-activity" data-testid="walkthrough-library">

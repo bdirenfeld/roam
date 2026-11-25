@@ -62,6 +62,17 @@ describe('per-screen walkthroughs', () => {
 });
 
 describe('the Walkthroughs list (⋯ → Walkthrough)', () => {
+  it('has a way back to Help: the list closes and the Help sheet is asked for', async () => {
+    let asked = 0;
+    const on = () => { asked++; };
+    window.addEventListener('roam:help-sheet', on);
+    app('day');
+    fireEvent.click(await screen.findByText('Walkthrough'));
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Help' }));
+    window.removeEventListener('roam:help-sheet', on);
+    expect(screen.queryByTestId('walkthrough-library')).toBeNull();
+    expect(asked).toBe(1);
+  });
   it('says where each one stands, and runs this screen’s one again from the top', async () => {
     mocks.metadata = { roam_walkthroughs_v1: { day: { status: 'skipped', step: 1, updatedAt: 1 }, notes: { status: 'underway', step: 1, updatedAt: 1 }, budget: { status: 'done', step: 2, updatedAt: 1 } } };
     app('day');

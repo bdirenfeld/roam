@@ -504,7 +504,7 @@ export default function DesktopMasthead({ previewPath }: { previewPath?: string 
               onClick={() => { setOpen(false); openHelp(); }}
               style={{ display: "block", width: "100%", textAlign: "left", padding: "11px 16px", fontSize: 13, color: INK, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}
             >
-              Message us
+              Help and messages
             </button>
             <AdminDoor style={{ display: "block", padding: "11px 16px", fontSize: 13, color: INK, textDecoration: "none" }} />
             <form action={signOut}>

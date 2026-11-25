@@ -7,6 +7,7 @@ import { useEstimate, useJourneyNotes, useTripSettings } from '@/components/over
 import { GuidanceScreenContext, JourneyGuidanceContext, WalkthroughRegistryContext, WalkthroughScreensContext, useWalkthroughScreens, type GuidanceScreen } from './JourneyGuidanceContext';
 import { INITIAL, journeyStep, laterStep, parseProgress, shouldAutoStart, type Progress } from './progress';
 import WalkthroughLibrary from './WalkthroughLibrary';
+import { openHelpSheet } from '@/lib/help/unread';
 import { TOURS, advance, fromTile, mergeRecords, onOpen, parseRecord, type TourId, type TourRecord, type TourState } from '@/lib/onboarding/walkthroughs';
 import JourneyPointer from './JourneyPointer';
 import TourPointer from './TourPointer';
@@ -141,7 +142,7 @@ export default function JourneyGuidanceProvider({ children, preview = false }: {
   const skip = useCallback(() => {
     setActive(false);
     save({ ...(progressRef.current ?? INITIAL), step, paused: true, updatedAt: Date.now() });
-    toast({ message: 'Pick it up anytime from ⋯ → Walkthrough.' });
+    toast({ message: 'Pick it up anytime from ⋯ → Help → Walkthroughs.' });
   }, [save, step, toast]);
   const resume = useCallback(() => {
     setActive(true);
@@ -176,12 +177,12 @@ export default function JourneyGuidanceProvider({ children, preview = false }: {
     if (!state) return;
     const after = advance(current.id, state, Date.now());
     saveTour(current.id, after);
-    if (after.status === 'done') toast({ message: 'All done. Run it again anytime from ⋯ → Walkthrough.' });
+    if (after.status === 'done') toast({ message: 'All done. Run it again anytime from ⋯ → Help → Walkthroughs.' });
   }, [current, saveTour, toast]);
   const tourSkip = useCallback(() => {
     if (!current) return;
     saveTour(current.id, { status: 'skipped', step: toursRef.current[current.id]?.step ?? 0, updatedAt: Date.now() });
-    toast({ message: 'Pick it up anytime from ⋯ → Walkthrough.' });
+    toast({ message: 'Pick it up anytime from ⋯ → Help → Walkthroughs.' });
   }, [current, saveTour, toast]);
   // "Show all again" (the list's footer): each one shows once more on its own
   // screen; the first journey replays from step 1 on the next journey opened.
@@ -229,6 +230,6 @@ export default function JourneyGuidanceProvider({ children, preview = false }: {
     {firstJourneyShowing && <JourneyPointer screen={screen} step={step} replay={!!progress?.replay} onSkip={skip} onNext={next} />}
     {showTour && current && tourState && <TourPointer tour={TOURS[current.id]} step={tourState.step} onNext={tourNext} onSkip={tourSkip} />}
     {library && firstJourney && <WalkthroughLibrary tours={tours} firstJourney={firstState} firstStep={firstStep} computer={typeof window !== 'undefined' && window.innerWidth >= 768}
-      onFirstJourney={firstJourneyPick} onPick={pick} onResetAll={resetAll} onClose={() => setLibrary(false)} />}
+      onFirstJourney={firstJourneyPick} onPick={pick} onResetAll={resetAll} onClose={() => setLibrary(false)} onBack={() => { setLibrary(false); openHelpSheet(); }} />}
   </JourneyGuidanceContext.Provider></WalkthroughRegistryContext.Provider></GuidanceScreenContext.Provider>;
 }

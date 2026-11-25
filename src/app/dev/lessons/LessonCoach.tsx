@@ -31,7 +31,7 @@ export default function LessonCoach({ lesson, children }: { lesson: LessonId; ch
     act('advance');
     if (progress.step === 2) toast({ message: 'You’re ready. Keep making this journey yours.' });
   };
-  const skip = () => { act('pause'); toast({ message: 'Pick it up anytime from ⋯ → Walkthrough.' }); };
+  const skip = () => { act('pause'); toast({ message: 'Pick it up anytime from ⋯ → Help → Walkthroughs.' }); };
   return <GuidanceScreenContext.Provider value={setScreen}><JourneyGuidanceContext.Provider value={context}>
     {children}
     {ready && screen && !progress.paused && !progress.complete && <LessonPointer screen={screen} lesson={lesson} step={progress.step} onNext={next} onSkip={skip} preview />}

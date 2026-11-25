@@ -5,8 +5,8 @@
 
 import { useEffect, useState } from "react";
 import HelpSheet from "./HelpSheet";
-import { HELP_EVENT, setHelpUnread } from "@/lib/help/unread";
-import { messengerReady, openMessenger, startMessenger } from "@/lib/help/messenger";
+import { HELP_EVENT, HELP_SHEET_EVENT, setHelpUnread } from "@/lib/help/unread";
+import { initMessenger, messengerStatus, openMessenger } from "@/lib/help/messenger";
 
 const EVERY = 5 * 60 * 1000;
 
@@ -16,18 +16,20 @@ export default function HelpHost() {
     let last = 0;
     const check = () => {
       // Once the messenger runs, it keeps the dot itself.
-      if (messengerReady() || document.visibilityState === "hidden" || Date.now() - last < EVERY) return;
+      if (messengerStatus() !== "off" || document.visibilityState === "hidden" || Date.now() - last < EVERY) return;
       last = Date.now();
       fetch("/api/help?unread=1").then((r) => (r.ok ? r.json() : null)).then((j: { unread?: number } | null) => {
         if (typeof j?.unread === "number") setHelpUnread(j.unread);
       }).catch(() => { /* the dot waits */ });
     };
-    // "Message us" goes straight to the messenger when it is running; Roam's own chat otherwise.
-    const show = () => { if (!openMessenger()) setOpen(true); };
-    check();
-    fetch("/api/help/identity").then((r) => (r.ok && !r.redirected ? r.json() : null)).then((j: { jwt?: string | null } | null) => {
-      if (j?.jwt) void startMessenger(j.jwt);
-    }).catch(() => { /* Roam's own chat stays */ });
+    // The door waits to learn which system this person has: the messenger
+    // (their past conversations first), or Roam's own chat. Never a guess.
+    const show = () => { void openMessenger("messages").then((ok) => { if (!ok) setOpen(true); }); };
+    // Roam's own dot is only for Roam's own chat; the messenger keeps the dot itself.
+    void initMessenger().then((ok) => { if (!ok) check(); });
+    // Back from Walkthroughs: the sheet itself, so the messages and videos are one tap away again.
+    const sheet = () => setOpen(true);
+    window.addEventListener(HELP_SHEET_EVENT, sheet);
     window.addEventListener(HELP_EVENT, show);
     document.addEventListener("visibilitychange", check);
     const url = new URL(window.location.href);
@@ -37,6 +39,7 @@ export default function HelpHost() {
       window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
     }
     return () => {
+      window.removeEventListener(HELP_SHEET_EVENT, sheet);
       window.removeEventListener(HELP_EVENT, show);
       document.removeEventListener("visibilitychange", check);
     };
