@@ -21,6 +21,7 @@ import { listed, deviceOf } from "@/lib/videos/howTo";
 import { MAX_BODY, messageCode, safeScreen, tripFromScreen } from "@/lib/help/message";
 import { setHelpUnread } from "@/lib/help/unread";
 import { shrinkPicture } from "@/lib/help/picture";
+import { openMessenger, useMessengerReady } from "@/lib/help/messenger";
 
 const INK = "#1A1A2E";
 const RULE = "rgba(26,26,46,0.10)";
@@ -53,9 +54,12 @@ export default function HelpSheet({ onClose, guest = false }: { onClose: () => v
   const { available } = useHowToVideos();
   const drag = useSheetDrag(onClose, undefined, { mobileOnly: true });
   useEscapeKey(onClose, !videos);
+  // Featurebase is running: writing happens there, and this sheet is the door plus the two rows.
+  const messenger = useMessengerReady();
   const hasVideos = listed(available, typeof navigator === "undefined" ? "computer" : deviceOf(navigator.userAgent)).length > 0;
 
   const load = useCallback(async () => {
+    if (messenger) { setState("ready"); return; }
     setState("loading");
     const res = await fetch(at.trip ? `/api/help?trip=${at.trip}` : "/api/help").catch(() => null);
     // Middleware sends a signed-out request to the sign-in page (a 307), so it arrives as a redirect.
@@ -69,7 +73,7 @@ export default function HelpSheet({ onClose, guest = false }: { onClose: () => v
     setHelpUnread((j.elsewhere ?? []).reduce((n, e) => n + e.unread, 0));
     const replies = j.messages.filter((m) => !m.mine).map((m) => m.id);
     if (replies.length) void fetch("/api/help/read", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: replies }) }).catch(() => {});
-  }, [at.trip]);
+  }, [at.trip, messenger]);
   useEffect(() => { setText(kept(draftKey(at.trip))); void load(); }, [load, at.trip]);
   const go = (trip: string | null, title: string | null) => { sendingId.current = null; setPicture(null); setMessages(null); setAt({ trip, title }); };
   useEffect(() => { if (thread.current) thread.current.scrollTop = thread.current.scrollHeight; }, [messages]);
@@ -150,7 +154,12 @@ export default function HelpSheet({ onClose, guest = false }: { onClose: () => v
           </button>
         </div>
         <div className="min-h-0 overflow-y-auto overscroll-contain px-5 pb-1">
-          {state !== "signed-out" && (
+          {messenger && (
+            <button type="button" onClick={() => { onClose(); openMessenger(); }} className="w-full min-h-[48px] mb-3 rounded-xl text-[15px] font-semibold text-white" style={{ background: INK }}>
+              Message us
+            </button>
+          )}
+          {state !== "signed-out" && !messenger && (
             <>
               {at.trip !== own && (
                 <div className="flex items-center gap-3 pb-2">

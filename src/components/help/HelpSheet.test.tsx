@@ -10,6 +10,10 @@ vi.mock("@/components/ui/Toast", () => ({ useToast: () => said }));
 import HelpSheet, { HELP_FROM } from "./HelpSheet";
 import { JourneyGuidanceContext } from "@/components/onboarding/JourneyGuidanceContext";
 import { getHelpUnread, setHelpUnread } from "@/lib/help/unread";
+import { __resetMessenger, startMessenger } from "@/lib/help/messenger";
+
+const fb = vi.hoisted(() => ({ show: vi.fn() }));
+vi.mock("featurebase-js", () => ({ default: () => {}, whenReady: () => {}, onUnreadCountChange: () => {}, show: () => fb.show() }));
 
 const ok = (j: unknown, status = 200) => Promise.resolve({ ok: status < 300, status, json: () => Promise.resolve(j) });
 let server: (url: string, init?: { method?: string; body?: FormData }) => Promise<unknown>;
@@ -154,6 +158,21 @@ describe("Help", () => {
     await waitFor(() => expect(getHelpUnread()).toBe(0));
     fireEvent.click(screen.getByRole("button", { name: /Back/ }));
     expect(await screen.findByText("general note")).toBeTruthy();
+  });
+
+  it("with the messenger running: one Message us button that opens it, no box of our own, the rows stay", async () => {
+    vids.available = { "first-journey": 1 };
+    await startMessenger("jwt");
+    const onClose = vi.fn();
+    render(<HelpSheet onClose={onClose} />);
+    const go = await screen.findByRole("button", { name: "Message us" });
+    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(calls.some((c) => c.url.startsWith("/api/help"))).toBe(false);
+    expect(screen.getByRole("button", { name: /How-to videos/ })).toBeTruthy();
+    fireEvent.click(go);
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(fb.show).toHaveBeenCalledTimes(1);
+    __resetMessenger();
   });
 
   it("is masked from the recording", async () => {

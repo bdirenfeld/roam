@@ -2619,6 +2619,13 @@ hidden under the headers).
 - **The week drops a card's `archived` rows**: when auditing a day by SQL, filter `not archived` or you will count
   cards the app never shows (I told him 4 Sep had 14 cards; it had 2).
 
+## Help goes to Featurebase (24 Nov 2026, his call: stop building support ourselves)
+Workspace roam1.featurebase.app; app id in `lib/help/messenger` (public). `HelpHost` asks `/api/help/identity` for a
+signed HS256 token (`lib/help/featurebaseJwt`, secret `FEATUREBASE_JWT_SECRET` in Vercel) and boots the messenger with
+its floating button hidden. While the secret is unset the route returns `jwt: null` and Help is Roam's own chat below,
+unchanged: that is the fallback, do not delete it until Featurebase has run for a while. With the messenger running,
+"Message us" opens it directly, the Help sheet shows one Message us button plus the Walkthroughs and videos rows, and
+Featurebase's unread count drives `HelpDot`. Do not add features to the home-built chat or `/admin/feedback`.
 ## Help: one conversation per JOURNEY (24 Nov 2026, changed the same day)
 He tried one-per-person and rejected it: a note about Paris showed in every journey's Help. Now `help_messages.trip_id`
 (migration 023, `on delete set null`) makes a thread per journey plus one outside any journey; `threadOf` in

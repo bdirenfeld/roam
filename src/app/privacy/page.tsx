@@ -19,7 +19,7 @@ export default function PrivacyPage() {
         <li><b>Ideas you save.</b> Links you send to Roam from other apps.</li>
         <li><b>How you use the app.</b> While Roam is being tested, Microsoft Clarity records how people move through it (taps, scrolling, which screens) so problems can be found and fixed. What you type is hidden from these recordings.</li>
         <li><b>Help while testing.</b> While Roam is being tested, its maker can open your journey, read only, to help when something goes wrong. Uploaded files are not opened this way.</li>
-        <li><b>What you write to us.</b> Messages and pictures you send from Help, and what comes with them: the screen you were on, your device and language, Roam&rsquo;s version, whether you own or were invited to the journey, whether you have paid, any error Roam had just logged, and a code that finds the recording of that visit. Used to answer you and fix Roam.</li>
+        <li><b>What you write to us.</b> Messages and pictures you send from Help, and what comes with them: the screen you were on, your device and language, Roam&rsquo;s version, whether you own or were invited to the journey, whether you have paid, any error Roam had just logged, and a code that finds the recording of that visit. Used to answer you and fix Roam. Messages are handled through Featurebase, a support service, which is given your name, email and Roam account id so your answer reaches you.</li>
         <li><b>Usage counts.</b> How many times a day you use the features that call outside services, so no one can run up the bill.</li>
       </ul>
 
