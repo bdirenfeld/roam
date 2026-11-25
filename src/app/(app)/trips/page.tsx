@@ -19,8 +19,6 @@ import { getAuthUser } from "@/lib/supabase/authUser";
 import { tripMarks, type BookingMark } from "@/lib/booking/marks";
 import type { CheckCard } from "@/lib/booking/checklist";
 import { SAMPLE_TITLE } from "@/lib/sampleTrip/itinerary";
-import JourneysMapButton from "@/components/trips/JourneysMapButton";
-import { journeyDots, showsMap } from "@/lib/journeys/mapDots";
 
 const COVER_WAIT_MS = 400;
 // Booking marks are worked out for the nearest few upcoming journeys only: each
@@ -145,10 +143,6 @@ export default async function TripsPage() {
     .slice(0, MARKS_MAX_TRIPS);
   const marksByTrip = await loadBookingMarks(supabase, user?.id ?? "", marked, daysByTrip);
 
-  // The map of every journey (25 Nov 2026), behind a Map button once there
-  // are two to put on it. Archived ones and the Example stay off.
-  const dots = journeyDots(upcoming as Trip[], past as Trip[], hrefByTrip, SAMPLE_TITLE);
-
   // Until there is a journey besides the example, the first screen shows.
   const firstSample: Trip | null = (trips ?? []).find((t: Trip) => t.user_id === user?.id) ?? null;
 
@@ -232,7 +226,6 @@ export default async function TripsPage() {
           )}
         </div>
       </div>
-      {showsMap(dots) && <JourneysMapButton dots={dots} phone={phone} />}
     </div>
   );
 }

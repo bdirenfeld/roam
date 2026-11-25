@@ -2,7 +2,7 @@ import Link from "next/link";
 import { markLabel, marksLabel, type BookingMark } from "@/lib/booking/marks";
 import type { RowKey } from "@/lib/booking/checklist";
 
-// The three booking marks in the corner of a journey's photo on Journeys
+// The three booking marks beside a journey's name on Journeys
 // (25 Nov 2026, mock approved): flight, hotel, car. Booked is near-white with
 // a small green tick; still to book is faint. No circles, no words: three
 // versions with chips and labels were each "too aggressive" on the photo.
@@ -18,29 +18,22 @@ const PATHS: Record<RowKey, string> = {
   car: "M224.61-220v50q0 12.75-8.62 21.37-8.63 8.63-21.38 8.63H170q-12.75 0-21.37-8.63Q140-157.25 140-170v-306.92L221.69-710q4.47-13.77 16.39-21.88Q250-740 264.62-740h432.3q14.04 0 25.5 8.25 11.45 8.25 15.89 21.75L820-476.92V-170q0 12.75-8.63 21.37Q802.75-140 790-140h-24.61q-12.75 0-21.38-8.63-8.62-8.62-8.62-21.37v-50H224.61Zm-.3-316.92h511.38L685.23-680H274.77l-50.46 143.08Zm-24.31 60V-280v-196.92Zm98.55 150.77q21.83 0 37.03-15.29 15.19-15.28 15.19-37.11t-15.28-37.03q-15.29-15.19-37.12-15.19t-37.02 15.28q-15.2 15.29-15.2 37.12t15.29 37.02q15.28 15.2 37.11 15.2Zm363.08 0q21.83 0 37.02-15.29 15.2-15.28 15.2-37.11t-15.29-37.03q-15.28-15.19-37.11-15.19t-37.03 15.28q-15.19 15.29-15.19 37.12t15.28 37.02q15.29 15.2 37.12 15.2ZM200-280h560v-196.92H200V-280Z",
 };
 
-/** The room the marks take at the caption's right, so a long caption wraps before them. */
-export const MARKS_ROOM = "pr-[112px]";
+// Where they sit (25 Nov 2026, his rulings in order): the photo's bottom corner on
+// a computer and its top corner on a phone both "looked weird", floating away
+// from the journey they describe. They now follow the journey's NAME, in its
+// heading, on a phone and a computer alike, and wrap with it as one piece.
+// 17px icons; the target reaches 44px tall for a thumb.
+const GROUP = "pointer-events-auto relative ml-[11px] inline-flex items-center gap-[9px] whitespace-nowrap align-[-2px] rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white";
 
-// On a phone (25 Nov 2026, clickable mock approved) the marks sit in the photo's
-// TOP corner: the card is shorter there and its caption wraps along the bottom.
-// The top of a photo is often bright sky, so they carry a soft shadow and the
-// faint ones are a little less faint. The whole group is one 36px-tall target.
-const CORNER = {
-  bottom: "absolute right-[10px] bottom-[7px] z-[1] flex items-center gap-[11px] rounded-full px-2 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white",
-  top: "absolute left-[6px] top-[5px] z-[1] flex items-center gap-[11px] rounded-full px-2 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white",
-} as const;
-
-export default function BookingMarks({ title, marks, href, corner = "bottom" }: { title: string; marks: BookingMark[]; /** Bookings for this journey; null draws the marks without a link. */ href: string | null; corner?: "bottom" | "top" }) {
+export default function BookingMarks({ title, marks, href }: { title: string; marks: BookingMark[]; /** Bookings for this journey; null draws the marks without a link. */ href: string | null }) {
   if (marks.length === 0) return null;
-  const faint = corner === "top" ? "rgba(255,255,255,0.55)" : "rgba(255,255,255,0.4)";
-  const shared = { "aria-label": marksLabel(title, marks), "data-testid": "booking-marks", "data-corner": corner, className: CORNER[corner], style: corner === "top" ? { filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.35))" } : undefined };
+  const shared = { "aria-label": marksLabel(title, marks), "data-testid": "booking-marks", className: GROUP };
   const icons = (
     <>
-      {/* On a phone the group is 36px tall; its target reaches 44. */}
-      {corner === "top" && <span aria-hidden="true" data-testid="booking-marks-target" className="absolute inset-x-0 -inset-y-1" />}
+      <span aria-hidden="true" data-testid="booking-marks-target" className="absolute -inset-x-2 -inset-y-[14px]" />
       {marks.map((m) => (
-        <span key={m.key} title={markLabel(m)} data-mark={m.key} data-booked={m.booked ? "yes" : "no"} className="relative block h-5 w-5">
-          <svg aria-hidden="true" viewBox="0 -960 960 960" width="20" height="20" fill="currentColor" style={{ color: m.booked ? "rgba(255,255,255,0.92)" : faint }}>
+        <span key={m.key} title={markLabel(m)} data-mark={m.key} data-booked={m.booked ? "yes" : "no"} className="relative block h-[17px] w-[17px]">
+          <svg aria-hidden="true" viewBox="0 -960 960 960" width="17" height="17" fill="currentColor" style={{ color: m.booked ? "rgba(255,255,255,0.92)" : "rgba(255,255,255,0.45)" }}>
             <path d={PATHS[m.key]} />
           </svg>
           {m.booked && (
@@ -52,5 +45,5 @@ export default function BookingMarks({ title, marks, href, corner = "bottom" }: 
       ))}
     </>
   );
-  return href ? <Link href={href} {...shared}>{icons}</Link> : <div role="img" {...shared}>{icons}</div>;
+  return href ? <Link href={href} {...shared}>{icons}</Link> : <span role="img" {...shared}>{icons}</span>;
 }

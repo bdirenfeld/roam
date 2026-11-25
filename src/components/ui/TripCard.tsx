@@ -13,7 +13,7 @@ import { setTripArchived } from "@/lib/tripArchive";
 import { tripCountdown } from "@/lib/trips/countdown";
 import { localDate } from "@/lib/isSameLocalDay";
 import Pieces from "./Pieces";
-import BookingMarks, { MARKS_ROOM } from "./BookingMarks";
+import BookingMarks from "./BookingMarks";
 import { bookingsHref, type BookingMark } from "@/lib/booking/marks";
 import JourneyMenu from "./JourneyMenu";
 import CopyJourneySheet from "@/components/trip/CopyJourneySheet";
@@ -30,7 +30,7 @@ interface Props {
   owner?: boolean;
   /** Flights, stays, car: booked or not, in the photo's corner (25 Nov 2026). Absent: none drawn. */
   marks?: BookingMark[];
-  /** A phone: the marks go in the photo's top corner and lead to this day (null: no link). */
+  /** A phone: the marks lead to this day with Bookings open (null: no link). */
   marksPhoneDayId?: string | null;
   phone?: boolean;
 }
@@ -111,7 +111,8 @@ export default function TripCard({ trip, href, owner = false, marks, marksPhoneD
   return (
     <>
       <div className="group relative">
-        <Link href={href ?? `/trips/${trip.id}`} className="block">
+        {/* The name is drawn over this link, not inside it (see the caption below), so the link names itself. */}
+        <Link href={href ?? `/trips/${trip.id}`} className="block" data-testid="trip-card-link" aria-label={`${isSample ? SAMPLE_NAME : trip.title}, ${caption}`}>
           <article className="rounded-2xl overflow-hidden border border-gray-100 bg-white active:scale-[0.99] transition-all duration-150 [@media(hover:hover)]:group-hover:shadow-[0_0_0_1.5px_rgba(196,98,45,0.3)]">
 
             {/* The name and dates sit on the photograph rather than in a white
@@ -140,36 +141,36 @@ export default function TripCard({ trip, href, owner = false, marks, marksPhoneD
 
               {isSample && <span className="absolute top-3 left-3 rounded-full bg-white px-3 py-1 text-[13px] font-semibold text-activity">Example</span>}
 
-              {/* With booking marks in the corner the caption keeps clear of them: a long
-                  one wraps before the icons instead of running under them. */}
-              <div className={`absolute inset-x-0 bottom-0 px-4 pb-3.5 ${marks?.length && !phone ? MARKS_ROOM : ""}`} data-testid="trip-caption">
-                <h3 className="text-[19px] md:text-xl font-normal text-white leading-snug">
-                  {isSample ? SAMPLE_NAME : trip.title}
-                </h3>
-                <p
-                  className="text-[10.5px] tracking-widest uppercase mt-0.5"
-                  style={{ color: "rgba(255,255,255,0.72)" }}
-                >
-                  {/* Pieces wraps between pieces, never inside one: on a narrow
-                      phone a long caption puts the countdown on the next line
-                      whole (6 Oct 2026, Brennan). */}
-                  <Pieces text={countdown ? `${caption} · ${countdown}` : caption} />
-                </p>
-              </div>
             </div>
           </article>
         </Link>
 
-        {/* Beside the card's link, never inside it (a link in a link is not allowed):
-            the three marks are their own door, to this journey's Bookings. */}
-        {marks && (
-          <BookingMarks
-            title={isSample ? SAMPLE_NAME : trip.title}
-            marks={marks}
-            corner={phone ? "top" : "bottom"}
-            href={phone ? (marksPhoneDayId ? bookingsHref(trip.id, marksPhoneDayId) : null) : bookingsHref(trip.id)}
-          />
-        )}
+        {/* The caption lies OVER the card's link rather than inside it (25 Nov 2026):
+            the booking marks beside the name are a link of their own, and a link
+            cannot sit in a link. It lets every click through to the card except
+            on the marks (pointer-events). 1px in from the foot and sides for the
+            article's border. */}
+        <div className="pointer-events-none absolute inset-x-px bottom-px px-4 pb-3.5" data-testid="trip-caption">
+          <h3 className="text-[19px] md:text-xl font-normal text-white leading-snug">
+            {isSample ? SAMPLE_NAME : trip.title}
+            {marks && (
+              <BookingMarks
+                title={isSample ? SAMPLE_NAME : trip.title}
+                marks={marks}
+                href={phone ? (marksPhoneDayId ? bookingsHref(trip.id, marksPhoneDayId) : null) : bookingsHref(trip.id)}
+              />
+            )}
+          </h3>
+          <p
+            className="text-[10.5px] tracking-widest uppercase mt-0.5"
+            style={{ color: "rgba(255,255,255,0.72)" }}
+          >
+            {/* Pieces wraps between pieces, never inside one: on a narrow
+                phone a long caption puts the countdown on the next line
+                whole (6 Oct 2026, Brennan). */}
+            <Pieces text={countdown ? `${caption} · ${countdown}` : caption} />
+          </p>
+        </div>
 
         {/* ··· menu — one deliberate door for manage actions. Hover-reveal on
             desktop; always visible on touch (the old pencil was unreachable
