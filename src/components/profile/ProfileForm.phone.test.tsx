@@ -41,12 +41,13 @@ describe("Profile on the phone", () => {
     expect(screen.getByTestId("profile-rows").textContent).not.toMatch(/only you/i);
   });
 
-  it("Help is the ? in the corner: it closes Profile and opens Help", () => {
+  it("Help is the ? in the corner: it opens Help over Profile, which stays (the way back)", () => {
     let closed = 0;
     show(() => { closed++; });
     fireEvent.click(screen.getByTestId("profile-help"));
     expect(help.opened).toBe(1);
-    expect(closed).toBe(1);
+    expect(closed).toBe(0);
+    expect(screen.getByTestId("profile-rows")).toBeTruthy();
     // …and is not also a row in the list
     expect(Array.from(screen.getByTestId("profile-list").querySelectorAll("button")).filter((b) => !b.classList.contains("hidden")).map((b) => b.textContent)).not.toContain("Help");
   });

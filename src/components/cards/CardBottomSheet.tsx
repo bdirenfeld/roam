@@ -1646,7 +1646,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               {!readOnly && !noPhoto && localCard.status === "in_itinerary" && (
                 <button
                   onClick={() => setShowLinkSheet(true)}
-                  className="relative w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                  // A place-less card has the ✕ in this corner. The ⋯ after this button steps clear of
+                  // it (mr-10); on a phone there is often no ⋯, and this button sat under the ✕ (26 Nov 2026).
+                  className={`relative w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors${place && !noPhoto ? "" : " last:mr-10"}`}
                   aria-label="Link place from map"
                 >
                   <span aria-hidden="true" className={DISC_TARGET} />

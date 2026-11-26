@@ -222,7 +222,7 @@ export default function ProfileForm({ initial = null, variant = "page", onDismis
           Profile
         </span>
         {/* Help is the "?" in the corner (26 Nov 2026): as a lone row in the list it "just sat there". */}
-        <button type="button" data-testid="profile-help" aria-label="Help" onClick={() => { onDismiss?.(); openHelp(); }} className="relative ml-auto flex items-center justify-center w-11 h-11 text-gray-500 hover:text-gray-800 transition-colors flex-shrink-0">
+        <button type="button" data-testid="profile-help" aria-label="Help" onClick={() => { /* Profile stays open underneath: closing Help is the way back (26 Nov 2026) */ openHelp(); }} className="relative ml-auto flex items-center justify-center w-11 h-11 text-gray-500 hover:text-gray-800 transition-colors flex-shrink-0">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <circle cx="12" cy="12" r="9.5" /><path d="M9.3 9.2a2.8 2.8 0 0 1 5.4 1c0 1.900-2.700 2.300-2.700 4.100" /><path d="M12 17.400v.100" />
           </svg>

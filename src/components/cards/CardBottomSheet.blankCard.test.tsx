@@ -75,6 +75,13 @@ describe("a blank card from the week's hour menu", () => {
     expect(screen.getByText("Restaurant")).toBeTruthy();
   });
 
+  it("the pin button steps clear of the ✕ when no ⋯ follows it (a phone)", async () => {
+    await open(blank({ kind: "food" }));
+    const pin = screen.getByRole("button", { name: "Link place from map" });
+    expect(pin.className).toContain("last:mr-10");
+    expect(pin.parentElement!.lastElementChild).toBe(pin);
+  });
+
   it("the name he types is saved as the card's own title", async () => {
     await open(blank({ kind: "food" }));
     const input = screen.getByPlaceholderText("What's the plan?");

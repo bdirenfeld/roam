@@ -700,31 +700,6 @@ export default function CreateCardSheet({
                 )}
               </div>
 
-              {/* The group chips — only when there is a saved list to narrow. */}
-              {saved.length > 0 && !selected && availableGroups.size > 1 && (
-                <div className="flex items-center gap-2 mb-3 px-0.5">
-                  {GROUPS.filter((g) => availableGroups.has(g.type)).map((g) => {
-                    const on = groupFilter === g.type;
-                    return (
-                      <button
-                        key={g.type}
-                        type="button"
-                        onClick={() => setGroupFilter(on ? null : g.type)}
-                        aria-pressed={on}
-                        className="rounded-full px-3 py-1.5 text-[12.5px] transition-colors"
-                        style={on
-                          ? { background: "#1A1A2E", color: "#fff" }
-                          : { color: "#1A1A2E", boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.14)" }}
-                      >
-                        {g.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
-              </div>
-
               {/* What kind of thing? (26 Nov 2026): the same four the week's hour menu asks,
                   in the same words. He turned down a "No place yet" row: "the whole premise
                   of there being a place or not is kind of weird and presumptuous... it should
@@ -764,6 +739,33 @@ export default function CreateCardSheet({
                   </span>
                 </button>
               )}
+
+              {/* The group chips — only when there is a saved list to narrow. They sit right
+                  above that list (26 Nov 2026): above the kind rows, "Food / Activity" chips
+                  over "Activity / Food" rows said the same two words twice (the phone viewer caught it). */}
+              {saved.length > 0 && !selected && availableGroups.size > 1 && (
+                <div data-testid="saved-filter" className="flex items-center gap-2 mb-3 px-0.5">
+                  {GROUPS.filter((g) => availableGroups.has(g.type)).map((g) => {
+                    const on = groupFilter === g.type;
+                    return (
+                      <button
+                        key={g.type}
+                        type="button"
+                        onClick={() => setGroupFilter(on ? null : g.type)}
+                        aria-pressed={on}
+                        className="rounded-full px-3 py-1.5 text-[12.5px] transition-colors"
+                        style={on
+                          ? { background: "#1A1A2E", color: "#fff" }
+                          : { color: "#1A1A2E", boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.14)" }}
+                      >
+                        {g.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              </div>
 
               {/* Saved first — one tap puts the place on the day and closes. */}
               {savedGroups.map((g) => (
