@@ -2695,3 +2695,7 @@ No grey helper text in this sheet, no "what's sent" link (his ruling); the priva
 ## Profile on a computer (26 Nov 2026)
 - The computer's Profile is the WINDOW the photo menu opens (`ProfileForm variant="overlay"`), not the bare `/profile` page, which nobody reaches on a computer. Open the window before proposing anything: a mock of `/profile` was rejected ("it still needs to be a window the way it is now").
 - His ruling: "the phone view is basically what we should use for desktop". The window keeps its ✕ and "?" (Help chat) and shows the phone's body: four rows that edit on a click, Sign out as a button, Feedback inbox and Delete account small and last. The "Travel profile" heading, Edit link, three-column box and "only you see this" are gone at every width. `profile-list` is no longer `md:hidden`, so Delete account is on Profile on a computer too.
+
+## Plan a journey button, and Journeys on a computer left alone (26 Nov 2026)
+- The masthead's Plan a journey is an outlined pill with the "+" in a white badge, same spot. He picked it from three shown on the live bar; amber was "terrible", a white pill passed over.
+- Six Journeys redesigns were mocked and rejected the same day (button above the cards, a right-hand column, a white Past/Archived panel, Your year as the big panel, his own map-plus-scrolling-table idea, one centred column): "these are all worse". With two upcoming journeys a wide layout looks empty. Do not re-propose a Journeys layout; ask him for a page he likes first.

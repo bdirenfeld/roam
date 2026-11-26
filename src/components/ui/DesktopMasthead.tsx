@@ -361,14 +361,26 @@ export default function DesktopMasthead({ previewPath }: { previewPath?: string 
         <NewJourneyLink
           title="Plan a journey"
           ariaLabel="Plan a journey"
+          // An outlined pill with the "+" in a white badge (26 Nov 2026, his pick of three
+          // shown on the live bar: he called amber "terrible" and passed over a white pill).
+          className="hover:bg-[rgba(255,255,255,0.10)] transition-colors"
           style={{
-            display: "inline-flex", alignItems: "center", gap: 7, height: 33,
-            padding: "0 13px 0 11px", marginRight: 8, borderRadius: 8,
-            background: "#FFFFFF", color: INK, fontSize: 13, fontWeight: 500,
-            letterSpacing: "-0.005em", border: "none", cursor: "pointer",
+            display: "inline-flex", alignItems: "center", gap: 10, height: 38,
+            padding: "0 18px 0 7px", marginRight: 16, borderRadius: 999,
+            color: ON_BAR, fontSize: 14, fontWeight: 500,
+            letterSpacing: "-0.01em", cursor: "pointer", textDecoration: "none",
+            boxShadow: "inset 0 0 0 1.5px rgba(255,255,255,0.55)",
           }}
         >
-          <Plus size={13} weight="bold" />
+          <span
+            data-testid="plan-journey-badge"
+            style={{
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              width: 24, height: 24, borderRadius: "50%", background: ON_BAR, color: INK, flexShrink: 0,
+            }}
+          >
+            <Plus size={12} weight="bold" />
+          </span>
           Plan a journey
         </NewJourneyLink>
       )}

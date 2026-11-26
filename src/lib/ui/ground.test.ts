@@ -42,8 +42,15 @@ describe("ink masthead", () => {
     expect(m).toMatch(/background: INK,\s*color: ON_BAR,/);
     expect(m).not.toMatch(OLD);
   });
-  it("Plan a journey is a white button on the bar", () => {
-    expect(m).toContain(`background: "#FFFFFF", color: INK`);
+  // 26 Nov 2026: his pick of three shown on the live bar. Not a white button (it was one
+  // until then), not amber ("terrible"): an outlined pill, the "+" in a white badge.
+  it("Plan a journey is an outlined pill on the bar, its + in a white badge", () => {
+    const btn = m.slice(m.indexOf("<NewJourneyLink"), m.indexOf("</NewJourneyLink>"));
+    expect(btn).toContain(`boxShadow: "inset 0 0 0 1.5px rgba(255,255,255,0.55)"`);
+    expect(btn).toContain("borderRadius: 999");
+    expect(btn).toContain("color: ON_BAR");
+    expect(btn).not.toContain(`background: "#FFFFFF"`);
+    expect(btn).toMatch(/plan-journey-badge[\s\S]*background: ON_BAR, color: INK/);
   });
 });
 
