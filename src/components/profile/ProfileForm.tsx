@@ -95,7 +95,7 @@ export default function ProfileForm({ initial = null, variant = "page", onDismis
     <div
       className={
         overlay
-          ? "px-5 pt-5 pb-24"
+          ? "px-5 pt-5 pb-24 md:pb-7"
           : "px-4 pt-6 pb-8 md:max-w-[880px] md:mx-auto md:px-10 md:pt-12 md:pb-16"
       }
     >
@@ -118,7 +118,7 @@ export default function ProfileForm({ initial = null, variant = "page", onDismis
           <div
             className={
               overlay
-                ? "flex items-center gap-4 mb-7 pb-6 border-b border-[rgba(26,26,46,0.12)]"
+                ? "flex items-center gap-4 mb-7 pb-6 border-b border-[rgba(26,26,46,0.12)] md:mb-4 md:pb-0 md:border-b-0"
                 : "flex items-center gap-4 mb-8 md:gap-[22px] md:mb-0 md:pb-7 md:border-b md:border-[rgba(26,26,46,0.12)]"
             }
           >
@@ -173,16 +173,16 @@ export default function ProfileForm({ initial = null, variant = "page", onDismis
             initialHomeAddress={data.homeAddress ?? null}
           />
 
-          {/* Guide + sign out. On the page these are mobile-only — at md:+ the
-              DesktopMasthead dropdown carries them. In the overlay they always
-              show: the overlay is reachable from a phone, where there is no
-              dropdown at all. */}
+          {/* Sign out and Delete account. They show at every width (26 Nov 2026): the
+              computer's Profile window is the phone's screen, by his ruling. Before that
+              they were phone-only and a computer had no Delete account on Profile at all. */}
           <div
             data-testid="profile-list"
-            className={`flex flex-col ${overlay ? "mt-6 md:hidden" : "mt-8 md:hidden"}`}
+            className={`flex flex-col ${overlay ? "mt-6" : "mt-8"}`}
           >
-            {/* The phone's door to Help outside a journey (24 Nov 2026). */}
-            <button type="button" onClick={() => { onDismiss?.(); openHelp(); }} className={`${PROFILE_ROW}${overlay ? " hidden" : ""}`}>
+            {/* The phone's door to Help outside a journey (24 Nov 2026). The window has the "?";
+                the bare /profile page on a computer has Help in the menu under the photo. */}
+            <button type="button" onClick={() => { onDismiss?.(); openHelp(); }} className={`${PROFILE_ROW}${overlay ? " hidden" : " md:hidden"}`}>
               <span className="relative">Help<HelpDot className="top-0 -right-3" /></span>
             </button>
             {/* Sign out is an action, so it is a button (26 Nov 2026), not a row that goes somewhere. */}

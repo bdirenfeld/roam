@@ -68,6 +68,22 @@ describe("Profile on the phone", () => {
     expect(small.textContent).toContain("Feedback inbox");
   });
 
+  // 26 Nov 2026: the computer's Profile window is this same screen ("the phone view is
+  // basically what we should use for desktop"). jsdom has no widths, so the test is that
+  // nothing here is hidden at md and the old computer-only pieces are gone.
+  it("the computer's window shows the same rows, Sign out and Delete account (nothing md:hidden)", () => {
+    show();
+    for (const id of ["profile-rows", "profile-list", "profile-sign-out", "profile-small-links", "profile-help"]) {
+      for (let el: HTMLElement | null = screen.getByTestId(id); el; el = el.parentElement) {
+        expect(el.className, id).not.toMatch(/(^|\s)md:hidden(\s|$)/);
+      }
+    }
+    expect(screen.queryByText("Travel profile")).toBeNull();
+    expect(screen.queryByText("Edit")).toBeNull();
+    expect(document.body.textContent).not.toMatch(/only you see/i);
+    expect(document.body.textContent).not.toContain("—");
+  });
+
   it("Delete account still asks before it does anything", () => {
     show();
     fireEvent.click(screen.getByText("Delete account"));
