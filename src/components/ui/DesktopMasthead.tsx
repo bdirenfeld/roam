@@ -379,7 +379,8 @@ export default function DesktopMasthead({ previewPath }: { previewPath?: string 
               width: 24, height: 24, borderRadius: "50%", background: ON_BAR, color: INK, flexShrink: 0,
             }}
           >
-            <Plus size={12} weight="bold" />
+            {/* Drawn here, heavy: Phosphor's bold plus read thin and grey at 12px on the white badge. */}
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={INK} strokeWidth="3" strokeLinecap="round" aria-hidden><path d="M12 5v14M5 12h14" /></svg>
           </span>
           Plan a journey
         </NewJourneyLink>
