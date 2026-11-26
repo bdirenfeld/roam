@@ -49,47 +49,50 @@ const lastDetails = () => writes.calls.filter((c) => c.table === "cards").pop()!
 beforeEach(() => { writes.calls = []; });
 
 describe("a blank card from the week's hour menu", () => {
-  it("has a name to type, Where? Add a place, and the kinds in a row", async () => {
+  it("has a name to type, Where? Add a place, and one line that opens the kind picker", async () => {
     await open(blank({ kind: "food" }));
-    expect(screen.getByPlaceholderText("Name it")).toBeTruthy();
+    // "Name it" read as an order (27 Nov 2026); the week's own question took its place.
+    expect(screen.getByPlaceholderText("What's the plan?")).toBeTruthy();
     expect(screen.getByTestId("note-where").textContent).toContain("Add a place");
-    const kinds = screen.getByTestId("blank-kinds");
-    expect(kinds.textContent).toContain("know the place yet?");
-    expect(Array.from(kinds.querySelectorAll("button")).map((b) => b.textContent)).toEqual(expect.arrayContaining(["Restaurant", "Coffee", "Bar", "Bakery"]));
+    expect(screen.getByTestId("blank-kind-link").textContent).toBe("Don’t know the place yet? Pick what kind it is");
   });
 
-  it("a kind picked from the row is saved as the card's sub-type, and the row goes", async () => {
-    await open(blank({ kind: "activity" }));
-    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Tour" })); });
-    expect(lastDetails()).toMatchObject({ kind: "activity", kind_type: "activity", kind_sub: "guided" });
+  it("no row of kinds on the card: the line opens the same picker the pill does (his ruling)", async () => {
+    await open(blank({ kind: "food" }));
     expect(screen.queryByTestId("blank-kinds")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Coffee" })).toBeNull();
+    await act(async () => { fireEvent.click(screen.getByTestId("blank-kind-link")); });
+    // the type picker: every type, not only Food's kinds, so a change of mind is one screen
+    await act(async () => { fireEvent.click(screen.getByText("Coffee")); });
+    expect(lastDetails()).toMatchObject({ kind: "food", kind_type: "food", kind_sub: "coffee" });
+    expect(screen.queryByTestId("blank-kind-link")).toBeNull();
   });
 
-  it("Logistics leaves Transit out of the row: Travel is its own door", async () => {
-    await open(blank({ kind: "logistics" }));
-    const labels = Array.from(screen.getByTestId("blank-kinds").querySelectorAll("button")).map((b) => b.textContent);
-    expect(labels).toContain("Hotel");
-    expect(labels).not.toContain("Transit");
+  it("the picker it opens offers the other types too (Activity picked, Logistics wanted)", async () => {
+    await open(blank({ kind: "activity" }));
+    await act(async () => { fireEvent.click(screen.getByTestId("blank-kind-link")); });
+    expect(screen.getByText("Hotel")).toBeTruthy();
+    expect(screen.getByText("Restaurant")).toBeTruthy();
   });
 
   it("the name he types is saved as the card's own title", async () => {
     await open(blank({ kind: "food" }));
-    const input = screen.getByPlaceholderText("Name it");
+    const input = screen.getByPlaceholderText("What's the plan?");
     fireEvent.change(input, { target: { value: "Dinner near the Duomo" } });
     await act(async () => { fireEvent.keyDown(input, { key: "Enter" }); });
     expect(lastDetails()).toMatchObject({ kind: "food", title: "Dinner near the Duomo" });
   });
 
-  it("a card that already had a name when it opened does not grow the row (his Dinner at the villa)", async () => {
+  it("a card that already had a name when it opened does not grow the line (his Dinner at the villa)", async () => {
     await open(blank({ kind: "food", title: "Dinner at the villa" }));
-    expect(screen.queryByTestId("blank-kinds")).toBeNull();
+    expect(screen.queryByTestId("blank-kind-link")).toBeNull();
     expect(screen.getByText("Dinner at the villa")).toBeTruthy();
   });
 
-  it("a guest sees no row and no box to type in", async () => {
+  it("a guest sees no line and no box to type in", async () => {
     await open(blank({ kind: "food" }), true);
-    expect(screen.queryByTestId("blank-kinds")).toBeNull();
-    expect(screen.queryByPlaceholderText("Name it")).toBeNull();
+    expect(screen.queryByTestId("blank-kind-link")).toBeNull();
+    expect(screen.queryByPlaceholderText("What's the plan?")).toBeNull();
   });
 });
 

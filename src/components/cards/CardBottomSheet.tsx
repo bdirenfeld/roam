@@ -1749,15 +1749,8 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                             >
                               Change type
                             </button>}
-                            {/* Delete card left the bottom of a travel card (25 Nov 2026): it is here. Still instant, with the same undo. */}
-                            <button
-                              role="menuitem"
-                              disabled={isDeleting}
-                              onClick={() => { setShowCardMenu(false); void handleDelete(); }}
-                              className="w-full text-left px-3.5 py-2.5 text-[13px] font-medium text-red-500 hover:bg-red-50/50 transition-colors border-t border-gray-100 disabled:opacity-40"
-                            >
-                              Delete card
-                            </button>
+                            {/* Delete card is NOT here (27 Nov 2026): it spent two days in this menu and he
+                                asked for it back on the card, at the bottom, where every other card has it. */}
                           </>
                         )}
                         {/* A boarding-pass flight has no type pill (19 Nov 2026): Change type is here, on the phone too. */}
@@ -1842,7 +1835,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               // A typed card with no place has a name of its own to give (26 Nov 2026).
               <TitleEditor
                 value={typeof (localCard.details as { title?: unknown } | null)?.title === "string" ? ((localCard.details as { title: string }).title).trim() : ""}
-                placeholder="Name it"
+                placeholder="What's the plan?"
                 autoEdit={startedBlank}
                 onSave={(v) => void saveDetailsPatch({ ...(localCard.details as Record<string, unknown>), title: v })}
               />
@@ -1864,25 +1857,21 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               />
             )}
             {/* Know the place: the row above. Don't yet: say what kind it is (26 Nov 2026,
-                "some times you will know the place and some times you won't"). Only on a
-                card opened blank, and only until a kind is picked; after that it is the pill. */}
+                "some times you will know the place and some times you won't"). A row of
+                kinds sat here for a day; he preferred the picker the pill opens (27 Nov:
+                "better than what you did on the card"), so this is one line that opens
+                that same picker. Only on a card opened blank, until a kind is picked. */}
             {isNote && noteKind && !readOnly && startedBlank && (noteKind.key === "activity" || noteKind.key === "food" || noteKind.key === "logistics") && !kindSub && (
-              <div className="mt-3" data-testid="blank-kinds">
-                <p className="mb-1.5 text-[11.5px]" style={{ color: "rgba(26,26,46,0.55)" }}>Don&rsquo;t know the place yet? Pick what kind it is:</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {(SUB_TYPE_OPTIONS[noteKind.key] ?? []).filter((o) => o.value !== "transit").map((o) => (
-                    <button
-                      key={o.value}
-                      type="button"
-                      onClick={() => void saveDetailsPatch({ ...withNoteKind(localCard.details as Record<string, unknown>, noteKindFor(noteKind.key, o.value)), kind_type: noteKind.key, kind_sub: o.value })}
-                      className="rounded-full px-3 py-1.5 text-[12.5px] font-medium text-[#1A1A2E] hover:bg-[#1A1A2E] hover:text-white transition-colors"
-                      style={{ boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.16)" }}
-                    >
-                      {o.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <button
+                type="button"
+                data-testid="blank-kind-link"
+                onClick={() => setShowNotePicker(true)}
+                className="relative mt-2.5 block text-left text-[12px] underline underline-offset-2 hover:text-[#1A1A2E]"
+                style={{ color: "rgba(26,26,46,0.62)" }}
+              >
+                <span aria-hidden="true" className="absolute inset-x-0 -top-3 -bottom-3" />
+                Don&rsquo;t know the place yet? Pick what kind it is
+              </button>
             )}
             {/* One quiet line under the route, "From Lusaka · change" (7 Oct
                 2026, mock t05): it replaced the From and To rows in the body,
@@ -2371,7 +2360,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               <p className="mt-7 w-full py-3 text-center text-[13px] font-medium" style={{ color: "rgba(26,26,46,0.45)" }}>
                 {deletedToast(localCard)} — undo above{/* named, was "Card deleted" (6 Oct 2026, delight audit) */}
               </p>
-            ) : !readOnly && !legCard ? (
+            ) : !readOnly ? (
               <button
                 onClick={handleDelete}
                 disabled={isDeleting}

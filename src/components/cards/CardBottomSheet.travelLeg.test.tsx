@@ -256,18 +256,21 @@ describe("the simpler travel card: directions, details, delete (25 Nov 2026)", (
     expect(screen.getByTestId("leg-start-other").textContent).toBe("Waze");
   });
 
-  it("the ⋯ no longer switches the directions app on a travel card; it holds Delete card", async () => {
+  it("the ⋯ no longer switches the directions app on a travel card, and does not hold Delete", async () => {
     window.localStorage.setItem("roam:directions-app", "waze");
     await open(drive());
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "More options" })); });
     expect(screen.queryByRole("menuitem", { name: /Directions in/ })).toBeNull();
-    expect(screen.getByRole("menuitem", { name: "Delete card" })).toBeTruthy();
+    expect(screen.queryByRole("menuitem", { name: "Delete card" })).toBeNull();
+    expect(screen.getByRole("menuitem", { name: "Rename" })).toBeTruthy();
   });
 
-  it("a drive has no Add details and no Delete button at the bottom", async () => {
+  it("a drive has no Add details; Delete card is on the card, where every other card has it", async () => {
+    // It went into the ⋯ on 25 Nov; on the 27th: "the delete button isn't on the card,
+    // it's in the drop down menu, so we should fix that too."
     await open(drive());
     expect(screen.queryByText("Add details")).toBeNull();
-    expect(screen.queryByRole("button", { name: "Delete card" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Delete card" })).toBeTruthy();
   });
 
   it("a train keeps Add details: its ticket and confirmation live there", async () => {
