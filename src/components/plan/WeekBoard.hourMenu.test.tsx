@@ -35,7 +35,7 @@ vi.mock("@/lib/scheduleCard", () => ({
   }),
 }));
 // The card he already has, played by a stand-in that shows what it was handed.
-type CardProps = { card: Card; onClose: () => void; onCardUpdate?: (c: Card) => void };
+type CardProps = { card: Card; askKind?: boolean; onClose: () => void; onCardUpdate?: (c: Card) => void };
 const opened = vi.hoisted(() => ({ props: null as CardProps | null }));
 vi.mock("@/components/cards/CardBottomSheet", () => ({
   default: (p: CardProps) => { opened.props = p; return <div data-testid="card-sheet">{JSON.stringify(p.card.details)}<button onClick={p.onClose}>close card</button></div>; },
@@ -84,6 +84,8 @@ describe("the week's empty hour asks what it is", () => {
     expect(scheduled[0].endTime).toMatch(/^08:00/);
     expect(screen.getByTestId("card-sheet")).toBeTruthy();
     expect(opened.props!.card.id).toBe("new1");
+    // …and the card is told to open asking what kind (27 Nov 2026)
+    expect(opened.props!.askKind).toBe(true);
     expect(screen.queryByRole("menu")).toBeNull();
   });
 

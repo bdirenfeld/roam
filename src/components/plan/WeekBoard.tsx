@@ -1618,6 +1618,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
           card={selectedCard}
           readOnly={readOnly}
           onOpenCard={setSelectedCard}
+          askKind={freshRef.current.has(selectedCard.id)}
           onClose={closeSelected}
           onCardUpdate={handleCardUpdate}
           onCardDelete={handleCardDelete}

@@ -122,6 +122,9 @@ interface Props {
   addToDay?: { label: string; onAdd: () => Promise<boolean> };
   /** Open another card in this sheet's place: a flight's layover row opens the connecting flight (19 Nov 2026). */
   onOpenCard?: (card: Card) => void;
+  /** Fresh from the week's hour menu (27 Nov 2026): open with "What kind of card?" already up,
+   *  so the kind is one click, not a pill to notice. Only a place-less card with no kind yet. */
+  askKind?: boolean;
 }
 
 /** Drop the booking/flight confirmation reference so it never renders for a
@@ -400,7 +403,7 @@ function TitleEditor({
  *  side — half the 6px gap — so no disc's target reaches its neighbour. */
 const DISC_TARGET = "absolute -inset-x-[3px] -inset-y-2";
 
-export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDelete, onCardCopied, days, tripDestination, partySize = null, readOnly = false, stayCheckOut = null, otherStayNights = {}, otherPortDays = {}, addToDay, onOpenCard }: Props) {
+export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDelete, onCardCopied, days, tripDestination, partySize = null, readOnly = false, stayCheckOut = null, otherStayNights = {}, otherPortDays = {}, addToDay, onOpenCard, askKind = false }: Props) {
   // Every field save reverts on refusal; it also says so now (UX audit,
   // Sep 2026, finding 1). Before, eight sites logged to the console only.
   const { toast } = useToast();
@@ -452,7 +455,10 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   const [deleteError,       setDeleteError]       = useState<string | null>(null);
   const [showSubTypePicker, setShowSubTypePicker] = useState(false);
   // The word "Note" as a dropdown (10 Nov 2026): a note becomes a real card.
-  const [showNotePicker, setShowNotePicker] = useState(false);
+  const [showNotePicker, setShowNotePicker] = useState(() => {
+    const d = card.details as { kind?: unknown; kind_sub?: unknown } | null;
+    return askKind && !readOnly && !card.place && !card.place_id && typeof d?.kind === "string" && d.kind !== "note" && !d.kind_sub;
+  });
   const [noteBusy, setNoteBusy] = useState(false);
   const [noteError, setNoteError] = useState<string | null>(null);
   // Deleted, but the sheet is still up so the undo is under the same thumb

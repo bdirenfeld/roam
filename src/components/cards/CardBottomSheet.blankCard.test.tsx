@@ -42,8 +42,8 @@ const blank = (details: Record<string, unknown>): Card => ({
   id: "c1", trip_id: "t1", day_id: "d1", place_id: null, place: null, status: "in_itinerary",
   start_time: "11:00:00", end_time: "12:00:00", confirmed: false, position: 0, source_url: null, details,
 } as unknown as Card);
-async function open(card: Card, readOnly = false) {
-  await act(async () => { render(<CardBottomSheet card={card} onClose={() => {}} days={days} readOnly={readOnly} />); });
+async function open(card: Card, readOnly = false, askKind = false) {
+  await act(async () => { render(<CardBottomSheet card={card} onClose={() => {}} days={days} readOnly={readOnly} askKind={askKind} />); });
 }
 const lastDetails = () => writes.calls.filter((c) => c.table === "cards").pop()!.patch.details as Record<string, unknown>;
 beforeEach(() => { writes.calls = []; });
@@ -116,5 +116,35 @@ describe("a kind brings its own details, with no place attached", () => {
       expect(screen.getByText("Hide empty fields"), `${t}/${st}`).toBeTruthy();
       unmount();
     }
+  });
+});
+
+describe("fresh from the week's hour menu, the card opens asking what kind (27 Nov 2026)", () => {
+  // Brennan: "otherwise a user would need to click on the food drop down again to open it up."
+  it("the kind picker is already up, on the type he chose", async () => {
+    await open(blank({ kind: "food" }), false, true);
+    expect(screen.getByText("What kind of card?")).toBeTruthy();
+    expect(screen.getByText("Coffee")).toBeTruthy();
+  });
+
+  it("picking a kind closes it and leaves him on the card with that kind", async () => {
+    await open(blank({ kind: "food" }), false, true);
+    await act(async () => { fireEvent.click(screen.getByText("Coffee")); });
+    expect(lastDetails()).toMatchObject({ kind: "food", kind_type: "food", kind_sub: "coffee" });
+    expect(screen.queryByText("What kind of card?")).toBeNull();
+    expect(screen.getByPlaceholderText("What's the plan?")).toBeTruthy();
+  });
+
+  it("the same blank card opened any other way does not ask: the line is the door", async () => {
+    await open(blank({ kind: "food" }));
+    expect(screen.queryByText("What kind of card?")).toBeNull();
+    expect(screen.getByTestId("blank-kind-link")).toBeTruthy();
+  });
+
+  it("it never asks about a card that has a place, a kind already, or a guest looking", async () => {
+    await open(blank({ kind: "food", kind_type: "food", kind_sub: "bar", title: "x" }), false, true);
+    expect(screen.queryByText("What kind of card?")).toBeNull();
+    await open(blank({ kind: "food" }), true, true);
+    expect(screen.queryByText("What kind of card?")).toBeNull();
   });
 });
