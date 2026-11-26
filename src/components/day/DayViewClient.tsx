@@ -54,6 +54,7 @@ const JourneyNotesSheet = dynamic(reloadOnStale(() => import("@/components/trip/
 import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
 import { createClient } from "@/lib/supabase/client";
 import { queuedUpdate, queuedInsert, queuedDelete } from "@/lib/offline/queuedWrite";
+import { isBlankTyped } from "@/lib/cards/noteKinds";
 import { takenOffDayToast } from "@/lib/takenOff";
 import { planExisting, stayAnchor } from "@/lib/week/dayPlan";
 import { applyOverlayAll } from "@/lib/offline/writeQueue";
@@ -788,6 +789,30 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards: st
 
   // Cards placed via the "Add from saved" picker — splice this day's in,
   // sorted like handleCardCreated. The interested card stays untouched.
+  // A kind row in "Add to this day" (26 Nov 2026): the blank card is on the day; the add
+  // sheet steps away and the card opens asking what kind. One closed still blank is removed,
+  // a tick later so a name committed by the same tap has landed (as the week does).
+  const freshKindRef = useRef<Set<string>>(new Set());
+  const localCardsRef = useRef<Card[]>([]);
+  localCardsRef.current = localCards;
+  const handleKindCard = useCallback((card: Card) => {
+    setLocalCards((prev) => [...prev, card].sort(agendaOrder));
+    freshKindRef.current.add(card.id);
+    lastAddedRef.current = null;
+    setGapTimes(null);
+    setSelectedCard(card);
+    setIsCardOpen(true);
+  }, []);
+  const dropIfBlank = useCallback((id: string | undefined) => {
+    if (!id || !freshKindRef.current.delete(id)) return;
+    setTimeout(() => {
+      const c = localCardsRef.current.find((x) => x.id === id);
+      if (!c || !isBlankTyped(c)) return;
+      setLocalCards((prev) => prev.filter((x) => x.id !== id));
+      void queuedDelete("cards", { id });
+    }, 0);
+  }, []);
+
   const handleCardCreated = useCallback((card: Card) => {
     setLocalCards((prev) => [...prev, card].sort(agendaOrder));
     // The sheet stays open — the row says "Added ✓" and you can add more.
@@ -1206,7 +1231,9 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards: st
           key={selectedCard.id}
           card={selectedCard}
           onOpenCard={setSelectedCard}
+          askKind={freshKindRef.current.has(selectedCard.id)}
           onClose={() => {
+            dropIfBlank(selectedCard.id);
             setSelectedCard(null);
             setIsCardOpen(false);
             if (returnToAddRef.current) { setAddHidden(false); returnToAddRef.current = null; }
@@ -1247,6 +1274,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards: st
           countries={searchCountries(trip.destination, localCards.map((c) => c.place?.address))}
           onClose={handleCreateClose}
           onCardCreated={handleCardCreated}
+          onKindCard={handleKindCard}
           hidden={addHidden}
           dayLabel={dayChip(dayWithCards.date, true)}
           onPreviewCard={(card, add) => { returnToAddRef.current = gapTimes; setAddHidden(true); setPreviewAdd(() => add); setSelectedCard(card); setIsCardOpen(true); }}

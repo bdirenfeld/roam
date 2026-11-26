@@ -65,6 +65,13 @@ function PillIcon({ name }: { name: string | null }) {
   return <span aria-hidden="true" className="material-symbols-outlined" style={{ fontSize: 16, lineHeight: 1, fontVariationSettings: "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20" }}>{name}</span>;
 }
 
+/** The kinds "Add to this day" asks, above Travel: the week's hour menu, on the phone. */
+const KIND_ROWS: { kind: "activity" | "food" | "logistics"; label: string; glyph: string; sub: string }[] = [
+  { kind: "activity", label: "Activity", glyph: "directions_walk", sub: "A tour, museum, hike, beach or event" },
+  { kind: "food", label: "Food", glyph: "restaurant", sub: "A restaurant, coffee, bar or market" },
+  { kind: "logistics", label: "Logistics", glyph: "luggage", sub: "A hotel, car rental, grocery run or errand" },
+];
+
 const TYPE_OPTIONS: { value: CardType; label: string }[] = [
   { value: "activity",  label: "Activity"  },
   { value: "food",      label: "Food"      },
@@ -133,6 +140,9 @@ interface Props {
   onPreviewCard?: (card: Card, add: () => Promise<boolean>) => void;
   /** The day as a short label ("Tue 25 Aug"): a Google add says where it went (6 Oct 2026, taps audit). */
   dayLabel?: string;
+  /** A kind row was tapped (26 Nov 2026): a blank card of that kind is on the day; the host
+   *  opens it. Without this the rows do not show (a host that cannot open a card). */
+  onKindCard?: (card: Card) => void;
   /** "Added ✓" tapped again: the card came back off the day. */
   onCardRemoved?: (cardId: string) => void;
   /** Kept mounted but out of sight while the host shows a previewed card. */
@@ -155,7 +165,7 @@ interface Props {
 export default function CreateCardSheet({
   dayId, listId = null, tripId, endPosition, onClose, onCardCreated,
   initialStatus, extraDetails, initialStartTime, initialEndTime,
-  scheduledPlaceIds, destination, destinationLat, destinationLng, countries, onPreviewCard, onCardRemoved, hidden = false,
+  scheduledPlaceIds, destination, destinationLat, destinationLng, countries, onPreviewCard, onCardRemoved, onKindCard, hidden = false,
   dayLabel,
 }: Props) {
   const { toast } = useToast();
@@ -258,6 +268,20 @@ export default function CreateCardSheet({
   }, [savedMatches, groupFilter, GROUPS]);
   // Which groups have anything saved at all — a chip for an empty group is a dead tap.
   const availableGroups = useMemo(() => new Set(saved.map((c) => c.place!.type)), [saved]);
+
+  const addKind = useCallback(async (kind: "activity" | "food" | "logistics") => {
+    if (!dayId || saving || !onKindCard) return;
+    setSaving(true);
+    const newCard = await scheduleCardOnDay(supabase, {
+      tripId, dayId, placeId: null, place: null,
+      details: { ...(extraDetails ?? {}), kind } as Card["details"],
+      startTime: startTime ? `${startTime.slice(0, 5)}:00` : null,
+      endTime: endTime ? `${endTime.slice(0, 5)}:00` : null,
+    });
+    setSaving(false);
+    if (!newCard) { toast({ message: "Couldn't add that. Try again." }); return; }
+    onKindCard(newCard);
+  }, [dayId, tripId, supabase, startTime, endTime, saving, onKindCard, extraDetails, toast]);
 
   const handleQuickAdd = useCallback(async (card: Card): Promise<boolean> => {
     if (!dayId || !card.place_id || saving) return false;
@@ -701,6 +725,26 @@ export default function CreateCardSheet({
 
               </div>
 
+              {/* What kind of thing? (26 Nov 2026): the same four the week's hour menu asks,
+                  in the same words. He turned down a "No place yet" row: "the whole premise
+                  of there being a place or not is kind of weird and presumptuous... it should
+                  just be the type of thing you add." A tap makes a blank card of that kind and
+                  the host opens the card he already has, asking what kind (askKind). */}
+              {dayId && !title.trim() && onKindCard && (
+                <div data-testid="add-kind-rows">
+                  {KIND_ROWS.map((r) => (
+                    <button key={r.kind} type="button" data-kind={r.kind} disabled={saving} onClick={() => void addKind(r.kind)} className="w-full flex items-center gap-3 px-1 py-2.5 text-left active:opacity-70 disabled:opacity-50" style={{ borderBottom: "1px solid rgba(26,26,46,0.08)" }}>
+                      <span className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#F0EFEB", boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.10)" }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: 16, color: "#1A1A2E" }} aria-hidden="true">{r.glyph}</span>
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[14px] font-medium text-[#1A1A2E]">{r.label}</span>
+                        <span className="block text-[11.5px] mt-0.5" style={{ color: "rgba(26,26,46,0.62)" }}>{r.sub}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
               {/* Travel (14 Nov 2026): a drive, train, bus or ferry between two
                   places. Its own sheet asks where to; the start is filled in. */}
               {dayId && !title.trim() && (

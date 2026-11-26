@@ -109,3 +109,52 @@ describe("CreateCardSheet — previewing a saved row hands over its Add (6 Oct 2
     expect(screen.getByText("Added ✓")).toBeTruthy();
   });
 });
+
+describe("Add to this day asks what kind of thing (26 Nov 2026, as the week's hour menu does)", () => {
+  // Brennan, of a "No place yet" row: "the whole premise of there being a place or not is
+  // kind of weird and presumptuous... it should just be the type of thing you add: activity,
+  // food, logistics, or travel, then you pick one and it's like the thing we did on the computer."
+  beforeEach(() => { schedule.mockClear(); });
+
+  it("Activity, Food, Logistics, then Travel, as rows of one kind", async () => {
+    await act(async () => { render(<CreateCardSheet {...props} onCardCreated={() => {}} onKindCard={() => {}} />); });
+    const rows = Array.from(screen.getByTestId("add-kind-rows").querySelectorAll("button")).map((b) => b.getAttribute("data-kind"));
+    expect(rows).toEqual(["activity", "food", "logistics"]);
+    const travel = screen.getByTestId("add-travel-row");
+    expect(screen.getByTestId("add-kind-rows").compareDocumentPosition(travel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByText(/No place yet/)).toBeNull();
+  });
+
+  it("a tap makes a blank card of that kind on the day, at the time asked for, and hands it to the host", async () => {
+    const got: Card[] = [];
+    const created: Card[] = [];
+    await act(async () => { render(<CreateCardSheet {...props} initialStartTime="13:00" initialEndTime="14:00" onCardCreated={(c) => created.push(c)} onKindCard={(c) => got.push(c)} />); });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: /^Food/ })); });
+    expect(schedule).toHaveBeenCalledTimes(1);
+    expect((schedule.mock.calls[0] as unknown[])[1]).toMatchObject({ tripId: "t1", dayId: "d3", placeId: null, details: { kind: "food" }, startTime: "13:00:00", endTime: "14:00:00" });
+    expect(got.map((c) => c.id)).toEqual(["day-card-1"]);
+    // the host opens it; it is not also announced as an added place
+    expect(created).toEqual([]);
+  });
+
+  it("the rows step aside once he starts typing, as Travel does", async () => {
+    await act(async () => { render(<CreateCardSheet {...props} onCardCreated={() => {}} onKindCard={() => {}} />); });
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "Dinner" } });
+    expect(screen.queryByTestId("add-kind-rows")).toBeNull();
+  });
+
+  it("a host that cannot open the card (the Plan list) shows no rows", async () => {
+    await act(async () => { render(<CreateCardSheet {...props} onCardCreated={() => {}} />); });
+    expect(screen.queryByTestId("add-kind-rows")).toBeNull();
+    expect(screen.getByTestId("add-travel-row")).toBeTruthy();
+  });
+
+  it("a save that fails says so and hands the host nothing", async () => {
+    schedule.mockResolvedValueOnce(null as unknown as { id: string });
+    const got: Card[] = [];
+    await act(async () => { render(<CreateCardSheet {...props} onCardCreated={() => {}} onKindCard={(c) => got.push(c)} />); });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: /^Activity/ })); });
+    expect(got).toEqual([]);
+    expect(toast).toHaveBeenCalled();
+  });
+});
