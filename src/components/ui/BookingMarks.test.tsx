@@ -101,6 +101,9 @@ describe("the marks on a journey's card", () => {
     expect(marks.className).not.toContain("right-");
     expect(dots.className.split(" ")).toContain("right-1");
     expect(dots.className).not.toContain("left-1");
+    // always showing, on a computer too (26 Nov 2026): no hover-reveal
+    expect(dots.className).not.toContain("opacity-0");
+    expect(dots.className).not.toContain("group-hover");
     // not in the heading any more: the name stands alone
     expect(screen.getByTestId("trip-caption").querySelector("h3")!.textContent).toBe("Chris Voss Training");
   });

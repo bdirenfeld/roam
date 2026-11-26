@@ -175,12 +175,14 @@ export default function TripCard({ trip, href, owner = false, marks, marksPhoneD
           />
         )}
 
-        {/* ··· menu — one deliberate door for manage actions. Hover-reveal on
-            desktop; always visible on touch (the old pencil was unreachable
-            on phones). Delete stays behind its own confirmation. */}
+        {/* ··· menu — one deliberate door for manage actions. Always visible, on a
+            computer too (26 Nov 2026, his ask: "not wait until someone mouses
+            over"); it was hover-reveal there, and with the booking marks at the
+            top left the empty right corner read as lopsided. Delete stays
+            behind its own confirmation. */}
         <button
           onClick={() => setMenuOpen((v) => !v)}
-          className="absolute top-1 right-1 z-10 w-9 h-9 rounded-full flex items-center justify-center opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity duration-150"
+          className="absolute top-1 right-1 z-10 w-9 h-9 rounded-full flex items-center justify-center"
           aria-label={`Options for ${trip.title}`}
           aria-haspopup="menu"
           aria-expanded={menuOpen}
