@@ -153,13 +153,6 @@ export default function TripCard({ trip, href, owner = false, marks, marksPhoneD
         <div className="pointer-events-none absolute inset-x-px bottom-px px-4 pb-3.5" data-testid="trip-caption">
           <h3 className="text-[19px] md:text-xl font-normal text-white leading-snug">
             {isSample ? SAMPLE_NAME : trip.title}
-            {marks && (
-              <BookingMarks
-                title={isSample ? SAMPLE_NAME : trip.title}
-                marks={marks}
-                href={phone ? (marksPhoneDayId ? bookingsHref(trip.id, marksPhoneDayId) : null) : bookingsHref(trip.id)}
-              />
-            )}
           </h3>
           <p
             className="text-[10.5px] tracking-widest uppercase mt-0.5"
@@ -171,6 +164,15 @@ export default function TripCard({ trip, href, owner = false, marks, marksPhoneD
             <Pieces text={countdown ? `${caption} · ${countdown}` : caption} />
           </p>
         </div>
+
+        {/* The booking marks: the photo's top left, on one line with the ⋯ at its top right. */}
+        {marks && (
+          <BookingMarks
+            title={isSample ? SAMPLE_NAME : trip.title}
+            marks={marks}
+            href={phone ? (marksPhoneDayId ? bookingsHref(trip.id, marksPhoneDayId) : null) : bookingsHref(trip.id)}
+          />
+        )}
 
         {/* ··· menu — one deliberate door for manage actions. Hover-reveal on
             desktop; always visible on touch (the old pencil was unreachable

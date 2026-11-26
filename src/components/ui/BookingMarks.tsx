@@ -39,18 +39,25 @@ const FILLED: Record<RowKey, string> = {
 // both change, nothing is added beside or on top of an icon, and the only
 // colour on the card is still the photograph. Do not add a dot, a tick or
 // green back.
-const GROUP = "pointer-events-auto relative ml-[12px] inline-flex items-center gap-[9px] whitespace-nowrap align-[-1px] rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white";
+//
+// Where they sit, FINAL (same day, after beside-the-name went live): the photo's
+// top LEFT, "on the same line as the three dots on the far right". So the group
+// is the same box as TripCard's ⋯ button (top-1, h-9), mirrored to the left, and
+// wears the same soft shadow, since the top of a photo is often bright sky.
+// Its 8px of side padding puts the first icon over the caption's left edge.
+const GROUP = "pointer-events-auto absolute left-[9px] top-1 z-[1] flex h-9 items-center gap-[10px] whitespace-nowrap rounded-full px-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white";
+const SHADOW = { filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.55))" } as const;
 
 export default function BookingMarks({ title, marks, href }: { title: string; marks: BookingMark[]; /** Bookings for this journey; null draws the marks without a link. */ href: string | null }) {
   if (marks.length === 0) return null;
-  const shared = { "aria-label": marksLabel(title, marks), "data-testid": "booking-marks", className: GROUP };
+  const shared = { "aria-label": marksLabel(title, marks), "data-testid": "booking-marks", className: GROUP, style: SHADOW };
   const icons = (
     <>
-      {/* 15px icons; the target reaches 45px tall for a thumb. */}
-      <span aria-hidden="true" data-testid="booking-marks-target" className="absolute -inset-x-2 -inset-y-[15px]" />
+      {/* The 36px box reaches 44 for a thumb, the same way the ⋯ does. */}
+      <span aria-hidden="true" data-testid="booking-marks-target" className="absolute inset-x-0 -inset-y-1" />
       {marks.map((m) => (
         <span key={m.key} title={markLabel(m)} data-mark={m.key} data-booked={m.booked ? "yes" : "no"} data-drawn={m.booked ? "filled" : "outline"} className="relative block h-[15px] w-[15px]">
-          <svg aria-hidden="true" viewBox="0 -960 960 960" width="15" height="15" fill="currentColor" style={{ color: m.booked ? "rgb(255, 255, 255)" : "rgba(255, 255, 255, 0.36)" }}>
+          <svg aria-hidden="true" viewBox="0 -960 960 960" width="15" height="15" fill="currentColor" style={{ color: m.booked ? "rgb(255, 255, 255)" : "rgba(255, 255, 255, 0.5)" }}>
             <path d={(m.booked ? FILLED : PATHS)[m.key]} />
           </svg>
         </span>

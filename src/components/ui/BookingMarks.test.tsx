@@ -85,11 +85,20 @@ describe("the booking marks", () => {
 });
 
 describe("the marks on a journey's card", () => {
-  it("sit beside the journey's name, in the same heading", () => {
+  it("sit at the photo's top left, on one line with the ⋯ at the top right", () => {
+    // Brennan, 25 Nov 2026 (final): "The top left looks alright but it needs to be on the same
+    // line as the three dots on the far right." Same top edge and same height as the ⋯ button.
     render(<TripCard trip={trip} href="/trips/t1/plan" owner marks={voss} />);
-    const h3 = screen.getByTestId("trip-caption").querySelector("h3")!;
-    expect(h3.textContent).toContain("Chris Voss Training");
-    expect(h3.contains(screen.getByTestId("booking-marks"))).toBe(true);
+    const marks = screen.getByTestId("booking-marks");
+    const dots = screen.getByLabelText("Options for Chris Voss Training");
+    for (const cls of ["absolute", "top-1", "h-9"]) {
+      expect(marks.className.split(" "), cls).toContain(cls);
+      expect(dots.className.split(" "), cls).toContain(cls);
+    }
+    expect(marks.className).toContain("left-");
+    expect(dots.className).toContain("right-1");
+    // not in the heading any more: the name stands alone
+    expect(screen.getByTestId("trip-caption").querySelector("h3")!.textContent).toBe("Chris Voss Training");
   });
 
   it("are never inside the card's own link: the caption lies over the card and lets clicks through, except on the marks", () => {
