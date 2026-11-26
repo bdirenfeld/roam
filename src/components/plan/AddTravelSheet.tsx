@@ -47,12 +47,14 @@ interface Props {
   onClose: () => void;
   onCardCreated: (card: Card) => void;
   onCardRemoved?: (cardId: string) => void;
+  /** Leave at this time ("HH:MM") instead of working it back from the day: the week opens the sheet from an hour that was clicked. */
+  leaveAt?: string | null;
 }
 
 type Way = { key: string; mode: LegMode; mins: number; extra: string };
 
 export default function AddTravelSheet({
-  dayId, tripId, endPosition, dayLabel, biasLat, biasLng, onBack, onClose, onCardCreated, onCardRemoved,
+  dayId, tripId, endPosition, dayLabel, biasLat, biasLng, onBack, onClose, onCardCreated, onCardRemoved, leaveAt = null,
 }: Props) {
   const { toast } = useToast();
   const supabase = useMemo(() => createClient(), []);
@@ -150,8 +152,9 @@ export default function AddTravelSheet({
   const setMode = (m: LegMode) => setChoice(m);
   const mins = picked?.mins ?? null;
 
-  const [leaveTyped, setLeaveTyped] = useState<string | null>(null);
-  const setTypedClear = () => setLeaveTyped(null);
+  const [leaveTyped, setLeaveTyped] = useState<string | null>(leaveAt);
+  // Changing either end drops a time typed by hand, back to the hour the sheet was opened for (if any).
+  const setTypedClear = () => setLeaveTyped(leaveAt);
   const plan: LeavePlan | null = to
     ? (leaveTyped ? withLeave(leaveTyped, mins) : planLeave(stops, { lat: to.lat, lng: to.lng }, mins))
     : null;

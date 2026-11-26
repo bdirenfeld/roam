@@ -38,6 +38,16 @@ describe("the booking marks", () => {
     expect(marks.map((m) => m.getAttribute("title"))).toEqual(["Flights: still to book", "Stays: booked", "Car: still to book"]);
   });
 
+  it("is quiet beside the name: small icons, and booked is a plain green dot with no tick drawn in it", () => {
+    // Brennan, 25 Nov 2026: at 17px and full white they "competed with the name of the trip".
+    render(<BookingMarks href={WEEK} title="Chris Voss Training" marks={voss} />);
+    const marks = Array.from(screen.getByTestId("booking-marks").querySelectorAll("[data-mark]"));
+    expect(marks.map((m) => m.querySelector("svg")!.getAttribute("width"))).toEqual(["13", "13", "13"]);
+    const dot = marks[1].querySelector("span")!;
+    expect(dot.querySelector("svg")).toBeNull();
+    expect(dot.className).toContain("h-[7px]");
+  });
+
   it("is one link to that journey's Bookings, named in words, with a thumb-sized target", () => {
     render(<BookingMarks href={WEEK} title="Chris Voss Training" marks={voss} />);
     const link = screen.getByTestId("booking-marks");

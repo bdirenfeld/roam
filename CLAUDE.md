@@ -2661,3 +2661,10 @@ No grey helper text in this sheet, no "what's sent" link (his ruling); the priva
 - Computer: the marks open `/trips/{id}/plan?bookings=1`. Phone: `/trips/{id}/days/{day}?bookings=1`, read once by `DayViewClient` (`takeBookingsFlag`). No day to open: marks without a link.
 - A lesson from the map that still holds: Mapbox will not zoom out past the world filling the map's HEIGHT, so a tall phone map can never show the whole world.
 - Local-only phone viewer screen `mapj` (the Journeys list with marks; never committed).
+- The marks are QUIET on purpose (same day, his words: at 17px and full white they were "competing with the name of the trip"): 13px, soft white booked / fainter not, and booked is a plain 7px green dot with no tick in it.
+
+## Travel from the week's empty hour, and Drive / Train on a note (25 Nov 2026)
+- His report: on a computer a drive took four steps (type in "What's the plan?", Enter, open the note, re-type it) and the picker had no "Drive". The phone had solved it on 14 Nov (Add a place → Travel → `AddTravelSheet`); the week just never opened it.
+- `plan/WeekTravelRow`: the phone's Travel row, word for word, under the week's empty-hour box while the box is EMPTY (typing a name hands the spot to `HourSuggestList`). It opens the same `AddTravelSheet` for the day clicked, with `leaveAt` = the hour clicked (the sheet otherwise works the leave time back from the day's stops). `onMouseDown` is prevented on the row: a blur would run the box's "make a note" first.
+- `TypeSheet` `travel` prop (notes only): Logistics shows **Drive** and **Train** where a place's picker says Transit; the pick writes `details.kind` drive/train + `kind_type` logistics / `kind_sub` transit, so the note then asks "Where to?" as before. A card with a real place still says Transit (its mode is picked on the card's travel panel).
+- Not done: `AddTravelSheet` opens on the week as the same bottom sheet as on the phone, not docked beside the map as the mock drew it.

@@ -44,6 +44,8 @@ import { useToast } from "@/components/ui/Toast";
 import { cardTimes } from "@/lib/cardTime";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
 import DocumentsSheet from "./DocumentsSheet";
+import AddTravelSheet from "./AddTravelSheet";
+import WeekTravelRow from "./WeekTravelRow";
 import StartHere from "./StartHere";
 import { useBookingUpload } from "@/components/trip/useBookingUpload";
 import WeekMap from "./WeekMap";
@@ -176,6 +178,8 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
   // Plan first (25 Sep 2026): click an empty hour, name it, a timeless-place
   // block lands there; a place can be linked from its sheet later.
   const [draftBlock, setDraftBlock] = useState<{ dayId: string; dayIdx: number; min: number } | null>(null);
+  // Travel from the empty hour (25 Nov 2026): the phone's Add travel sheet, for the day and hour clicked.
+  const [travelAt, setTravelAt] = useState<{ dayId: string; min: number } | null>(null);
   const [draftText, setDraftText] = useState("");
   // Bulk actions (25 Sep 2026): Shift-click blocks to pick them; a tray offers
   // Move to a day, Take off the day, Delete. Esc or ✕ clears.
@@ -1342,6 +1346,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
                         />
                         <div className="text-[9.5px] text-activity/60 tabular-nums">{fmt12(draftBlock.min)} – {fmt12(newBlockEnd(draftBlock.min))}</div>
                         <HourSuggestList items={suggest.items} savedCount={suggest.savedCount} active={suggest.active} onPick={(p) => void commitDraft(p)} />
+                        {!draftText.trim() && <WeekTravelRow onPick={() => { setTravelAt({ dayId: draftBlock.dayId, min: draftBlock.min }); setDraftBlock(null); }} />}
                       </div>
                     )}
                     {placed.map((b) => {
@@ -1577,6 +1582,20 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
           stayCheckOut={runs.find((r) => r.placeId === selectedCard.place_id)?.checkOut ?? null}
           otherStayNights={otherStayNights(runs, selectedCard.place_id)}
           otherPortDays={otherPortDays(days.flatMap((x) => x.cards), dateOfDay, selectedCard.id)}
+        />
+      )}
+      {travelAt && (
+        <AddTravelSheet
+          dayId={travelAt.dayId}
+          tripId={trip.id}
+          endPosition={days.find((d) => d.id === travelAt.dayId)?.cards.length ?? 0}
+          biasLat={trip.destination_lat}
+          biasLng={trip.destination_lng}
+          leaveAt={toTime(travelAt.min)}
+          onBack={() => setTravelAt(null)}
+          onClose={() => setTravelAt(null)}
+          onCardCreated={mapCardCreated}
+          onCardRemoved={(id) => setDays((prev) => prev.map((x) => ({ ...x, cards: x.cards.filter((c) => c.id !== id) })))}
         />
       )}
       {showDocs && <DocumentsSheet tripId={trip.id} onClose={() => setShowDocs(false)} onImport={readOnly ? undefined : () => { setShowDocs(false); upload.pick(); }} onAddByHand={readOnly ? undefined : () => { setShowDocs(false); upload.addByHand(); }} />}

@@ -64,3 +64,39 @@ describe("TypeSheet", () => {
     expect(screen.getByRole("tab", { name: "Activity" }).getAttribute("aria-selected")).toBe("true");
   });
 });
+
+describe("TypeSheet on a note: Drive and Train by name (25 Nov 2026)", () => {
+  // Brennan: "when you click on the card, you don't have the ability to change it to a drive".
+  // The merged picker (19 Nov) only said "Transit". A note now offers Drive and Train in Logistics.
+  const options = { food: [{ value: "restaurant", label: "Restaurant" }], activity: [{ value: "explore", label: "Explore" }], logistics: [{ value: "hotel", label: "Hotel" }, { value: "transit", label: "Transit" }, { value: "grocery", label: "Grocery" }] };
+  const base = { currentType: "", currentSubType: null, options, onSelect: () => {}, onClose: () => {}, note: { on: true, onPick: () => {} } };
+  const logistics = () => { fireEvent.click(screen.getByRole("tab", { name: "Logistics" })); return screen.getByRole("radiogroup", { name: "Logistics" }); };
+  // A chip is its glyph (an icon-font word) and then its name: read the name.
+  const nm = (b: Element) => (b.lastChild?.textContent ?? "").trim();
+  const names = (g: HTMLElement) => Array.from(g.querySelectorAll("[role=radio]")).map(nm);
+
+  it("shows Drive and Train where Transit was, and keeps the rest", () => {
+    render(<TypeSheet {...base} travel={{ current: null, onPick: () => {} }} />);
+    expect(names(logistics())).toEqual(["Hotel", "Drive", "Train", "Grocery"]);
+  });
+
+  it("picking Train says train, not a place kind", () => {
+    const onPick = vi.fn(), onSelect = vi.fn();
+    render(<TypeSheet {...base} onSelect={onSelect} travel={{ current: null, onPick }} />);
+    fireEvent.click(Array.from(logistics().querySelectorAll("[role=radio]")).find((b) => nm(b) === "Train")!);
+    expect(onPick).toHaveBeenCalledWith("train");
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it("a note that is already a drive opens on Logistics with Drive chosen", () => {
+    render(<TypeSheet {...base} currentType="logistics" currentSubType="transit" travel={{ current: "drive", onPick: () => {} }} />);
+    const g = screen.getByRole("radiogroup", { name: "Logistics" });
+    const chosen = Array.from(g.querySelectorAll("[role=radio][aria-checked=true]")).map(nm);
+    expect(chosen).toEqual(["Drive"]);
+  });
+
+  it("a card with a real place still says Transit (its way of travelling is picked on the card)", () => {
+    render(<TypeSheet currentType="logistics" currentSubType="hotel" options={options} onSelect={() => {}} onClose={() => {}} />);
+    expect(names(screen.getByRole("radiogroup", { name: "Logistics" }))).toEqual(["Hotel", "Transit", "Grocery"]);
+  });
+});

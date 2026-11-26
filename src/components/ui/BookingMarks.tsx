@@ -22,24 +22,25 @@ const PATHS: Record<RowKey, string> = {
 // a computer and its top corner on a phone both "looked weird", floating away
 // from the journey they describe. They now follow the journey's NAME, in its
 // heading, on a phone and a computer alike, and wrap with it as one piece.
-// 17px icons; the target reaches 44px tall for a thumb.
-const GROUP = "pointer-events-auto relative ml-[11px] inline-flex items-center gap-[9px] whitespace-nowrap align-[-2px] rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white";
+// Quiet on purpose (same day): at 17px and full white they "competed with the
+// name of the trip". 13px, soft white when booked and fainter when not, and
+// booked is a plain green dot: a tick inside a dot that small cannot be read.
+// The target still reaches 44px tall for a thumb.
+const GROUP = "pointer-events-auto relative ml-[12px] inline-flex items-center gap-[8px] whitespace-nowrap align-[-1px] rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white";
 
 export default function BookingMarks({ title, marks, href }: { title: string; marks: BookingMark[]; /** Bookings for this journey; null draws the marks without a link. */ href: string | null }) {
   if (marks.length === 0) return null;
   const shared = { "aria-label": marksLabel(title, marks), "data-testid": "booking-marks", className: GROUP };
   const icons = (
     <>
-      <span aria-hidden="true" data-testid="booking-marks-target" className="absolute -inset-x-2 -inset-y-[14px]" />
+      <span aria-hidden="true" data-testid="booking-marks-target" className="absolute -inset-x-2 -inset-y-[16px]" />
       {marks.map((m) => (
-        <span key={m.key} title={markLabel(m)} data-mark={m.key} data-booked={m.booked ? "yes" : "no"} className="relative block h-[17px] w-[17px]">
-          <svg aria-hidden="true" viewBox="0 -960 960 960" width="17" height="17" fill="currentColor" style={{ color: m.booked ? "rgba(255,255,255,0.92)" : "rgba(255,255,255,0.45)" }}>
+        <span key={m.key} title={markLabel(m)} data-mark={m.key} data-booked={m.booked ? "yes" : "no"} className="relative block h-[13px] w-[13px]">
+          <svg aria-hidden="true" viewBox="0 -960 960 960" width="13" height="13" fill="currentColor" style={{ color: m.booked ? "rgba(255,255,255,0.72)" : "rgba(255,255,255,0.32)" }}>
             <path d={PATHS[m.key]} />
           </svg>
           {m.booked && (
-            <span aria-hidden="true" className="absolute -right-[4px] -bottom-[2px] grid h-[9px] w-[9px] place-items-center rounded-full" style={{ background: "#2FA36B" }}>
-              <svg viewBox="0 0 10 10" width="7" height="7" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M2 5.2l2 2 4-4.4" /></svg>
-            </span>
+            <span aria-hidden="true" className="absolute -right-[3px] -bottom-[2px] block h-[7px] w-[7px] rounded-full" style={{ background: "#2FA36B" }} />
           )}
         </span>
       ))}

@@ -29,6 +29,7 @@ export function TypeSheet({
   onSelect,
   onClose,
   note,
+  travel,
 }: {
   currentType: string;
   currentSubType: string | null;
@@ -37,6 +38,12 @@ export function TypeSheet({
   onClose: () => void;
   /** On a note card (19 Nov 2026): a "Just a note" chip, so notes use this sheet too, on every screen. */
   note?: { on: boolean; onPick: () => void };
+  /**
+   * On a note (25 Nov 2026): Logistics offers Drive and Train by name where a
+   * place's picker says Transit. Brennan could not find how to make a card a
+   * drive; the names were lost when the pickers were merged on 19 Nov.
+   */
+  travel?: { current: "drive" | "train" | null; onPick: (mode: "drive" | "train") => void };
 }) {
   const start: Group = GROUPS.some((g) => g.value === currentType) ? (currentType as Group) : "activity";
   const [group, setGroup] = useState<Group>(start);
@@ -97,17 +104,19 @@ export function TypeSheet({
               aria-hidden={group !== value}
               className={`[grid-area:1/1] flex flex-wrap content-start gap-1.5 ${group === value ? "" : "invisible"}`}
             >
-              {(options[value] ?? []).map(({ value: sub, label }) => {
-                const on = currentType === value && currentSubType === sub;
-                const glyph = MATERIAL_ICONS[sub] ?? null;
+              {(options[value] ?? []).flatMap<{ value: string; label: string; mode: "drive" | "train" | null }>((o) => (travel && value === "logistics" && o.value === "transit"
+                ? [{ value: "transit", label: "Drive", mode: "drive" }, { value: "transit", label: "Train", mode: "train" }]
+                : [{ ...o, mode: null }])).map(({ value: sub, label, mode }) => {
+                const on = mode ? travel?.current === mode : currentType === value && currentSubType === sub;
+                const glyph = mode === "drive" ? "directions_car" : mode === "train" ? "train" : MATERIAL_ICONS[sub] ?? null;
                 return (
                   <button
-                    key={sub}
+                    key={mode ?? sub}
                     type="button"
                     role="radio"
                     aria-checked={on}
                     tabIndex={group === value ? 0 : -1}
-                    onClick={() => onSelect(value, sub)}
+                    onClick={() => (mode && travel ? travel.onPick(mode) : onSelect(value, sub))}
                     className={`inline-flex items-center gap-1.5 h-10 px-3 rounded-full border text-[13px] font-medium whitespace-nowrap transition-colors ${
                       on ? "bg-[#1A1A2E] border-[#1A1A2E] text-white" : "bg-white border-gray-200 text-gray-600 active:bg-gray-50"
                     }`}

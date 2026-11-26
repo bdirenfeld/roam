@@ -1504,6 +1504,13 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                     currentSubType={((localCard.details as Record<string, unknown> | null)?.kind_sub as string | undefined) ?? null}
                     options={SUB_TYPE_OPTIONS}
                     note={{ on: !noteKind, onPick: () => handleNoteKind(noteKindOf("note")) }}
+                    travel={{
+                      current: noteKind?.key === "drive" || noteKind?.key === "train" ? noteKind.key : null,
+                      onPick: (mode) => {
+                        setShowNotePicker(false);
+                        void saveDetailsPatch({ ...withNoteKind(localCard.details as Record<string, unknown>, mode), kind_type: "logistics", kind_sub: "transit" });
+                      },
+                    }}
                     onSelect={(t, st) => {
                       setShowNotePicker(false);
                       void saveDetailsPatch({ ...withNoteKind(localCard.details as Record<string, unknown>, noteKindFor(t, st)), kind_type: t, kind_sub: st });

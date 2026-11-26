@@ -71,12 +71,23 @@ describe("CardBottomSheet — Note is a dropdown (10 Nov 2026)", () => {
     expect(where.textContent).toContain("optional");
   });
 
-  it("Logistics › Transit makes it a drive: 'Where to?'", async () => {
+  // 25 Nov 2026: on a note the chip is named Drive (and Train), not Transit. Brennan could not
+  // find how to make a card a drive.
+  it("Logistics › Drive makes it a drive: 'Where to?'", async () => {
     await open();
     await act(async () => { fireEvent.click(screen.getByTestId("note-type-button")); });
     await act(async () => { fireEvent.click(within(screen.getByRole("dialog")).getByRole("tab", { name: "Logistics" })); });
-    await act(async () => { fireEvent.click(within(screen.getByRole("dialog")).getByRole("radio", { name: /Transit/ })); });
+    expect(within(screen.getByRole("dialog")).queryByRole("radio", { name: /Transit/ })).toBeNull();
+    await act(async () => { fireEvent.click(within(screen.getByRole("dialog")).getByRole("radio", { name: /Drive/ })); });
     expect(screen.getByTestId("note-where").textContent).toContain("Where to? Add a place");
+  });
+
+  it("Logistics › Train makes it a train: 'Which station?'", async () => {
+    await open();
+    await act(async () => { fireEvent.click(screen.getByTestId("note-type-button")); });
+    await act(async () => { fireEvent.click(within(screen.getByRole("dialog")).getByRole("tab", { name: "Logistics" })); });
+    await act(async () => { fireEvent.click(within(screen.getByRole("dialog")).getByRole("radio", { name: /Train/ })); });
+    expect(screen.getByTestId("note-where").textContent).toContain("Which station?");
   });
 
   it("a typed Activity with no place gets the activity fields behind Add details (11 Nov 2026)", async () => {
