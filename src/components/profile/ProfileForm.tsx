@@ -16,7 +16,6 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import ProfileClient from "@/components/profile/ProfileClient";
-import { GuideLink } from "@/components/overlays/AppOverlays";
 import { signOut } from "@/lib/auth-actions";
 
 export interface ProfileData {
@@ -42,6 +41,9 @@ interface Props {
   variant?: "page" | "overlay";
   onDismiss?: () => void;
 }
+
+/** One row of the phone's list under the travel profile (26 Nov 2026): a settings list, not a scatter of links. */
+const PROFILE_ROW = "relative w-full flex items-center justify-between min-h-[50px] text-left text-[15px] font-medium text-[#1A1A2E] border-b border-[rgba(26,26,46,0.08)] active:opacity-70 after:content-['›'] after:text-[20px] after:leading-none after:text-[rgba(26,26,46,0.3)]";
 
 export default function ProfileForm({ initial = null, variant = "page", onDismiss }: Props) {
   const overlay = variant === "overlay";
@@ -176,30 +178,25 @@ export default function ProfileForm({ initial = null, variant = "page", onDismis
               show: the overlay is reachable from a phone, where there is no
               dropdown at all. */}
           <div
-            className={`flex flex-wrap items-center gap-x-6 ${
-              overlay
-                ? "mt-8 pt-4 border-t border-gray-100 md:hidden"
-                : "mt-10 pt-4 border-t border-gray-100 md:hidden"
-            }`}
+            data-testid="profile-list"
+            className={`flex flex-col ${overlay ? "mt-6 md:hidden" : "mt-8 md:hidden"}`}
           >
             {/* The phone's door to Help outside a journey (24 Nov 2026). */}
-            <button type="button" onClick={() => { onDismiss?.(); openHelp(); }} className="relative text-sm font-semibold text-gray-600 min-h-[44px]">
-              Help and messages
-              <HelpDot className="top-1.5 -right-2" />
+            <button type="button" onClick={() => { onDismiss?.(); openHelp(); }} className={`${PROFILE_ROW}${overlay ? " hidden" : ""}`}>
+              <span className="relative">Help<HelpDot className="top-0 -right-3" /></span>
             </button>
-            <AdminDoor className="text-sm font-semibold text-gray-600 min-h-[44px] inline-flex items-center" />
-            <GuideLink className="text-sm font-semibold text-gray-400 hover:text-gray-500 transition-colors">
-              How Roam works
-            </GuideLink>
-            <form action={signOut}>
-              <button
-                type="submit"
-                className="text-sm font-semibold text-gray-400 hover:text-gray-500 transition-colors"
-              >
+            {/* Sign out is an action, so it is a button (26 Nov 2026), not a row that goes somewhere. */}
+            <form action={signOut} className={overlay ? "mt-2" : "mt-8"}>
+              <button type="submit" data-testid="profile-sign-out" className="w-full min-h-[48px] rounded-full text-[15px] font-medium text-[#1A1A2E] active:opacity-70" style={{ boxShadow: "inset 0 0 0 1.5px rgba(26,26,46,0.25)" }}>
                 Sign out
               </button>
             </form>
-            <DeleteAccount />
+            {/* Small and last: the one thing here that cannot be undone. It has to stay
+                reachable from Profile (privacy law, Google's review, and /privacy says so). */}
+            <div data-testid="profile-small-links" className="mt-5 flex flex-wrap items-center justify-center gap-x-6 [&>button]:text-[12.5px] [&>button]:font-normal [&>button]:min-h-[44px]">
+              <AdminDoor className="text-[12.5px] text-gray-400 min-h-[44px] inline-flex items-center" />
+              <DeleteAccount />
+            </div>
           </div>
         </>
       )}
@@ -224,6 +221,13 @@ export default function ProfileForm({ initial = null, variant = "page", onDismis
         <span className="absolute left-0 right-0 text-center text-[16px] font-display italic text-gray-900 pointer-events-none">
           Profile
         </span>
+        {/* Help is the "?" in the corner (26 Nov 2026): as a lone row in the list it "just sat there". */}
+        <button type="button" data-testid="profile-help" aria-label="Help" onClick={() => { onDismiss?.(); openHelp(); }} className="relative ml-auto flex items-center justify-center w-11 h-11 text-gray-500 hover:text-gray-800 transition-colors flex-shrink-0">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="9.5" /><path d="M9.3 9.2a2.8 2.8 0 0 1 5.4 1c0 1.900-2.700 2.300-2.700 4.100" /><path d="M12 17.400v.100" />
+          </svg>
+          <HelpDot className="top-2 right-2" />
+        </button>
       </div>
       {/* scroll-pb-24 belongs on the scroller, not the content: it is what
           lets a focused field near the bottom be scrolled clear of a phone

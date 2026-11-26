@@ -17,6 +17,7 @@ vi.mock("@/components/overlays/AppOverlays", () => {
   );
   return {
     EstimateLink: Row,
+    GuideLink: Row,
     TripSettingsLink: Row,
     useJourneyNotes: () => ({ open: vi.fn() }),
   };

@@ -113,7 +113,7 @@ export default function ProfileClient({
           {/* Section header — at md:+ the label sits in a row with a flex hairline
               rule and an italic-Playfair underlined Edit button, matching the
               desktop canvas. */}
-          <div className="flex items-baseline justify-between mb-3 md:gap-3.5 md:mb-4">
+          <div className="hidden md:flex items-baseline justify-between mb-3 md:gap-3.5 md:mb-4">
             <p className="text-[10px] font-medium uppercase tracking-[0.06em] text-gray-400 md:text-[rgba(26,26,46,0.62)]">
               Travel profile
             </p>
@@ -128,13 +128,23 @@ export default function ProfileClient({
           </div>
           {/* At md:+ the cells sit in a white card with hairline border and a
               subtle inset shadow, per canvas. Mobile keeps the bare 3-col grid. */}
-          <div className="grid grid-cols-3 gap-3.5 md:gap-6 md:bg-white md:rounded-xl md:px-6 md:py-5 md:shadow-[0_1px_2px_rgba(26,26,46,0.04),0_0_0_1px_rgba(26,26,46,0.12)]">
+          {/* On a phone (26 Nov 2026): one fact a row, label left and value right, and a tap
+              anywhere on them edits. The three-column grid of small labels is the computer's. */}
+          <button type="button" onClick={enterEdit} data-testid="profile-rows" aria-label="Edit your travel profile" className="md:hidden w-full text-left active:opacity-70">
+            {([["Home airport", homeAirport], ["Home country", homeCountry], ["Passport", passportCountry], ["Home address", homeAddress]] as const).map(([label, value]) => (
+              <span key={label} className="flex items-baseline justify-between gap-4 py-3 border-b border-[rgba(26,26,46,0.08)]">
+                <span className="text-[14px] text-[rgba(26,26,46,0.62)] flex-shrink-0">{label}</span>
+                <span className={`text-[15px] text-right min-w-0 truncate ${value ? "text-[#1A1A2E]" : "text-[rgba(26,26,46,0.35)]"}`}>{value || "Add"}</span>
+              </span>
+            ))}
+          </button>
+          <div className="hidden md:grid grid-cols-3 gap-3.5 md:gap-6 md:bg-white md:rounded-xl md:px-6 md:py-5 md:shadow-[0_1px_2px_rgba(26,26,46,0.04),0_0_0_1px_rgba(26,26,46,0.12)]">
             <FactInline label="Home airport" value={homeAirport} />
             <FactInline label="Home country" value={homeCountry} />
             <FactInline label="Passport" value={passportCountry} />
           </div>
           {/* Home, for "leave home" and "home around" on your flights (19 Nov 2026). Only you see it. */}
-          <div className="mt-3.5 md:mt-4">
+          <div className="hidden md:block mt-3.5 md:mt-4">
             <FactInline label="Home address · only you see this" value={homeAddress} />
           </div>
         </div>
