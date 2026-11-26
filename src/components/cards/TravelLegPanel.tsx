@@ -379,8 +379,10 @@ export default function TravelLegPanel({
  * door to directions.
  */
 export function LegRoute({
-  from, fromAddress, toTitle, toAddress, readOnly = false, open, onOpen, onDirections, prominent = false, rows = false,
+  from, fromAddress, toTitle, toAddress, readOnly = false, open, onOpen, onDirections, prominent = false, rows = false, heading = false,
 }: {
+  /** With rows: the stops ARE the card's heading (25 Nov 2026, the simpler travel card), a size up. */
+  heading?: boolean;
   /** The leg card laid out like every other card (16 Nov 2026): From and To as
    *  plain rows — grey icon, label, the place, › — under the title and time. */
   rows?: boolean;
@@ -446,7 +448,7 @@ export function LegRoute({
             <span aria-hidden="true" className="material-symbols-outlined flex-shrink-0 -ml-px" style={{ fontSize: 20, color: "#C0392B", fontVariationSettings: "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20" }}>location_on</span>
           )}
           <span className="flex-1 min-w-0">
-            <span className="block truncate text-[15px] font-medium" style={{ color: title ? INK : CAP }}>{title ?? "Add where you leave from"}</span>
+            <span className={`block truncate ${heading ? "text-[17px] font-semibold" : "text-[15px] font-medium"}`} style={{ color: title ? INK : CAP }}>{title ?? "Add where you leave from"}</span>
             {sub && <span className="block truncate text-[12.5px]" style={{ color: "rgba(26,26,46,0.5)" }}>{sub}</span>}
           </span>
           {!readOnly && <span aria-hidden="true" className="material-symbols-outlined" style={{ fontSize: 18, color: "rgba(26,26,46,0.3)" }}>chevron_right</span>}
@@ -463,7 +465,7 @@ export function LegRoute({
       );
     };
     return (
-      <div className="relative mb-4" data-testid="leg-route">
+      <div className={heading ? "relative" : "relative mb-4"} data-testid="leg-route">
         <span aria-hidden="true" className="absolute left-[8px] top-[30px] h-[18px]" style={{ borderLeft: "2.5px dotted rgba(26,26,46,0.3)" }} />
         {line("from", from?.title ?? null)}
         {line("to", toTitle, toAddress ? (toAddress.split(",").slice(0, 2).join(",").trim()) : null)}

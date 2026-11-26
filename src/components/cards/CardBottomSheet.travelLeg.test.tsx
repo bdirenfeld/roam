@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, act, fireEvent, cleanup, waitFor } from "@testing-library/react";
 import type { Card, Day } from "@/types/database";
 
@@ -70,12 +70,19 @@ const revealModes = async () => {
 };
 
 describe("CardBottomSheet — a travel leg (7 Oct 2026)", () => {
-  it("laid out like Google Maps: the length big, leave → arrive, the route line, one Start button (16 Nov 2026)", async () => {
+  it("the simpler travel card (25 Nov 2026): the two stops are the heading, then one line of time and length, one Start button", async () => {
     await open(truck());
-    // His own name for it shows (named); the length is the big line.
-    expect(screen.getByRole("heading", { name: "Lusaka → Mfuwe" })).toBeTruthy();
-    expect(screen.getByTestId("leg-length").textContent).toBe("13 h");
-    expect(screen.getByRole("button", { name: "Change the time" }).textContent).toBe("6:00 AM → 7:00 PM");
+    // An "A → B" name would say the stops twice: no title, no big length.
+    expect(screen.queryByRole("heading", { name: "Lusaka → Mfuwe" })).toBeNull();
+    expect(screen.queryByTestId("leg-title")).toBeNull();
+    const length = screen.getByTestId("leg-length");
+    expect(length.textContent).toBe("13 h");
+    expect(length.className).not.toContain("text-[26px]");
+    const time = screen.getByRole("button", { name: "Change the time" });
+    expect(time.textContent).toBe("6:00 AM – 7:00 PM");
+    expect(time.parentElement).toBe(length.parentElement);
+    // the stops come before the time line
+    expect(screen.getByTestId("leg-route").compareDocumentPosition(time) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByTestId("leg-from-row").textContent).toContain("Lusaka");
     expect(screen.getByTestId("leg-to-row").textContent).toContain("Mfuwe");
     expect(screen.getByTestId("leg-start").textContent).toContain("Start");
@@ -130,9 +137,16 @@ describe("CardBottomSheet — a travel leg (7 Oct 2026)", () => {
     expect((writes.calls.find((c) => c.table === "cards")!.patch.details as Record<string, unknown>).mode).toBe("drive");
   });
 
-  it("the title is his to rename (tap it): it saves as a named title, not the place's name", async () => {
+  it("a name he typed himself still shows above the stops, and a tap renames it", async () => {
+    await open(truck({ title: "Truck day" }));
+    expect(screen.getByTestId("leg-title").textContent).toBe("Truck day");
+    expect(screen.getByRole("button", { name: "Rename Truck day" })).toBeTruthy();
+  });
+
+  it("Rename is in the ⋯ on a phone too: it saves as a named title, not the place's name", async () => {
     await open(truck());
-    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Rename Lusaka → Mfuwe" })); });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "More options" })); });
+    await act(async () => { fireEvent.click(screen.getByRole("menuitem", { name: "Rename" })); });
     const input = screen.getByDisplayValue("Lusaka → Mfuwe");
     fireEvent.change(input, { target: { value: "Truck day to the park" } });
     await act(async () => { fireEvent.keyDown(input, { key: "Enter" }); });
@@ -211,6 +225,54 @@ describe("CardBottomSheet — a travel leg (7 Oct 2026)", () => {
     expect(screen.queryByRole("radio")).toBeNull();
     fireEvent.click(set);
     expect(screen.getByPlaceholderText("Search a town, station or port")).toBeTruthy();
+  });
+});
+
+describe("the simpler travel card: directions, details, delete (25 Nov 2026)", () => {
+  const drive = () => truck({ mode_label: undefined });
+  afterEach(() => { window.localStorage.clear(); });
+
+  it("the button names the app and nothing else; 'or Google Maps' under it opens the other one", async () => {
+    window.localStorage.setItem("roam:directions-app", "waze");
+    const opened: string[] = [];
+    vi.stubGlobal("open", (u: string) => { opened.push(u); });
+    await open(drive());
+    expect(screen.getByTestId("leg-start").textContent).toBe("Waze");
+    const other = screen.getByTestId("leg-start-other");
+    expect(other.textContent).toBe("Google Maps");
+    expect(other.parentElement!.textContent).toBe("or Google Maps");
+    await act(async () => { fireEvent.click(other); });
+    expect(opened).toHaveLength(1);
+    expect(opened[0]).toContain("google");
+    // it does not change which app the button uses
+    expect(window.localStorage.getItem("roam:directions-app")).toBe("waze");
+    expect(screen.getByTestId("leg-start").textContent).toBe("Waze");
+  });
+
+  it("with Google Maps as his app it reads the other way round", async () => {
+    window.localStorage.setItem("roam:directions-app", "google");
+    await open(drive());
+    expect(screen.getByTestId("leg-start").textContent).toBe("Google Maps");
+    expect(screen.getByTestId("leg-start-other").textContent).toBe("Waze");
+  });
+
+  it("the ⋯ no longer switches the directions app on a travel card; it holds Delete card", async () => {
+    window.localStorage.setItem("roam:directions-app", "waze");
+    await open(drive());
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "More options" })); });
+    expect(screen.queryByRole("menuitem", { name: /Directions in/ })).toBeNull();
+    expect(screen.getByRole("menuitem", { name: "Delete card" })).toBeTruthy();
+  });
+
+  it("a drive has no Add details and no Delete button at the bottom", async () => {
+    await open(drive());
+    expect(screen.queryByText("Add details")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Delete card" })).toBeNull();
+  });
+
+  it("a train keeps Add details: its ticket and confirmation live there", async () => {
+    await open(truck({ mode: "train", mode_label: undefined }));
+    expect(screen.getByText("Add details")).toBeTruthy();
   });
 });
 

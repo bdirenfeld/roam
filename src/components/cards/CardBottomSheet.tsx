@@ -1637,7 +1637,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   Move and Take-off as header buttons (Sep 2026) and found the
                   row cluttered, so the header keeps its glyphs and the verbs
                   live here. The sheet still closes itself after a move. */}
-              {(canBook || (navApp && place?.address && directionsUrl(otherApp(navApp), navTarget)) || (desktop && (canMove || (legCard && !readOnly))) || ((passOn || carOn) && !readOnly)) && (
+              {(canBook || (!legCard && navApp && place?.address && directionsUrl(otherApp(navApp), navTarget)) || (desktop && canMove) || (legCard && !readOnly) || ((passOn || carOn) && !readOnly)) && (
                 <div className={place && !noPhoto ? "relative" : "relative mr-10" /* a note card has the ✕ in this corner: keep the ⋯ clear of it (Brennan, 25 Sep 2026) */}>
                   <button
                     onClick={() => setShowCardMenu((v) => !v)}
@@ -1716,21 +1716,30 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                             </span>
                           </button>
                         )}
-                        {desktop && legCard && !readOnly && (
+                        {legCard && !readOnly && (
                           <>
                             <button
                               role="menuitem"
                               onClick={() => { setShowCardMenu(false); setRenaming(true); }}
-                              className={`w-full text-left px-3.5 py-2.5 text-[13px] font-medium text-gray-700 hover:bg-gray-50 transition-colors${canMove || canBook ? " border-t border-gray-100" : ""}`}
+                              className={`w-full text-left px-3.5 py-2.5 text-[13px] font-medium text-gray-700 hover:bg-gray-50 transition-colors${(desktop && canMove) || canBook ? " border-t border-gray-100" : ""}`}
                             >
                               Rename
                             </button>
-                            <button
+                            {desktop && <button
                               role="menuitem"
                               onClick={() => { setShowCardMenu(false); setShowSubTypePicker(true); }}
                               className="w-full text-left px-3.5 py-2.5 text-[13px] font-medium text-gray-700 hover:bg-gray-50 transition-colors border-t border-gray-100"
                             >
                               Change type
+                            </button>}
+                            {/* Delete card left the bottom of a travel card (25 Nov 2026): it is here. Still instant, with the same undo. */}
+                            <button
+                              role="menuitem"
+                              disabled={isDeleting}
+                              onClick={() => { setShowCardMenu(false); void handleDelete(); }}
+                              className="w-full text-left px-3.5 py-2.5 text-[13px] font-medium text-red-500 hover:bg-red-50/50 transition-colors border-t border-gray-100 disabled:opacity-40"
+                            >
+                              Delete card
                             </button>
                           </>
                         )}
@@ -1746,7 +1755,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                         )}
                         {/* Which app the address opens (16 Nov 2026): was a line under
                             the address on every card; switching is rare, so it lives here. */}
-                        {navApp && place?.address && directionsUrl(otherApp(navApp), navTarget) && (
+                        {!legCard && navApp && place?.address && directionsUrl(otherApp(navApp), navTarget) && (
                           <button
                             role="menuitem"
                             onClick={() => {
@@ -1786,23 +1795,16 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 onPatch={(p) => void saveDetailsPatch({ ...(localCard.details as Record<string, unknown>), ...p })} onTime={() => setTimeOpen(true)} />
             ) : legCard && !renaming ? (
               <>
-                {/* Laid out like Google Maps (16 Nov 2026, the mock he liked): the
-                    route line below says "A → B", so no long title — only his own
-                    name for the leg, if he gave one (tap it to rename). Then the
-                    length, big. Directions moved to the Start button. */}
-                {(localCard.details as { named?: boolean } | null)?.named && (
-                  <h2 className="text-[17px] font-bold text-gray-900 leading-snug mb-1" data-testid="leg-title">
+                {/* The simpler travel card (25 Nov 2026, his mock): the two stops below are
+                    the heading. Only a name he typed himself shows above them; an
+                    "A → B" name would say the stops twice. The length is on the time line. */}
+                {(localCard.details as { named?: boolean } | null)?.named && !legTitle(localCard).includes("→") && (
+                  <h2 className="text-[14px] font-medium leading-snug mb-0.5" style={{ color: "rgba(26,26,46,0.62)" }} data-testid="leg-title">
                     {readOnly ? legTitle(localCard) : (
                       <button type="button" onClick={() => setRenaming(true)} aria-label={`Rename ${legTitle(localCard)}`} className="text-left">{legTitle(localCard)}</button>
                     )}
                   </h2>
                 )}
-                <p className="text-[26px] font-bold leading-tight text-gray-900" data-testid="leg-length">
-                  {legDurationMins(localCard) ? formatLegDuration(legDurationMins(localCard)!) : legModeWord(localCard.details) || "Travel"}
-                  {legDurationMins(localCard) && legMerged && legModeWord(localCard.details) && (
-                    <span className="ml-2 text-[15px] font-medium" style={{ color: "rgba(26,26,46,0.55)" }}>{legModeWord(localCard.details).toLowerCase()}</span>
-                  )}
-                </p>
               </>
             ) : isTravelLeg(localCard) ? (
               // A leg's title is its route, "Lusaka → Mfuwe"; renaming it would
@@ -1854,7 +1856,19 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 onSwap={() => void swapLeg()}
                 onCancel={() => setLegOpen(null)}
               />
-            ) : legCapable && place && !legCard && (
+            ) : legCard && place ? (
+              <LegRoute
+                rows
+                heading
+                from={legFrom}
+                fromAddress={fromAddress}
+                toTitle={legDestTitle(localCard)}
+                toAddress={place.address}
+                readOnly={readOnly}
+                open={legOpen}
+                onOpen={(w) => { setLegOpen(w); if (w) setEditorUsed(true); scrollRef.current?.scrollTo?.({ top: 0 }); }}
+              />
+            ) : legCapable && place && (
               <LegRoute
                 prominent={legCard}
                 from={legFrom}
@@ -1925,8 +1939,8 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 </span>
               )
             ) : legCard ? (
-              // A leg's time is a line under its length (16 Nov 2026, Google Maps mock):
-              // leave → arrive; a tap changes it.
+              // One line under the stops (25 Nov 2026): leave – arrive · length. A tap on the times changes them.
+              <>
               <button
                 type="button"
                 onClick={() => setTimeOpen(true)}
@@ -1934,14 +1948,23 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 className="relative ml-2 text-[14px] text-left"
                 style={{ color: "rgba(26,26,46,0.62)" }}
               >
-                <span aria-hidden="true" className="absolute inset-x-0 -top-2 -bottom-[14px]" />
+                <span aria-hidden="true" className="absolute inset-x-0 -top-2 -bottom-[15px]" />
                 {localCard.start_time ? (
                   <>
                     <span style={{ borderBottom: "1px dashed rgba(26,26,46,0.35)" }}>{formatTimeValue(localCard.start_time)}</span>
-                    {localCard.end_time ? ` → ${formatTimeValue(localCard.end_time)}` : ""}
+                    {localCard.end_time ? ` – ${formatTimeValue(localCard.end_time)}` : ""}
                   </>
                 ) : <span style={{ borderBottom: "1px dashed rgba(26,26,46,0.35)" }}>Set a time</span>}
               </button>
+              {legDurationMins(localCard) && (
+                <>
+                  <span aria-hidden="true" className="text-[14px]" style={{ color: "rgba(26,26,46,0.4)" }}>·</span>
+                  <span className="text-[14px]" style={{ color: "rgba(26,26,46,0.62)" }} data-testid="leg-length">
+                    {formatLegDuration(legDurationMins(localCard)!)}{legMerged && legModeWord(localCard.details) ? ` ${legModeWord(localCard.details).toLowerCase()}` : ""}
+                  </span>
+                </>
+              )}
+              </>
             ) : (
               <button
                 type="button"
@@ -2092,18 +2115,6 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   }}
                 />
               )}
-              {legCard && place && (
-                <LegRoute
-                  rows
-                  from={legFrom}
-                  fromAddress={fromAddress}
-                  toTitle={legDestTitle(localCard)}
-                  toAddress={place.address}
-                  readOnly={readOnly}
-                  open={legOpen}
-                  onOpen={(w) => { setLegOpen(w); if (w) setEditorUsed(true); scrollRef.current?.scrollTo?.({ top: 0 }); }}
-                />
-              )}
               {legCard && place && (place.address || (place.lat != null && place.lng != null)) && (
                 // One Start button, as Google Maps has (16 Nov 2026): directions
                 // used to hide behind the address line and the ⋯.
@@ -2119,8 +2130,25 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   style={{ background: "#1A1A2E" }}
                 >
                   <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 4.5 20.3l.7.7L12 18l6.8 3 .7-.7z" /></svg>
-                  {navApp === "waze" ? "Start in Waze" : navApp === "google" ? "Start in Google Maps" : "Start"}
+                  {navApp === "waze" ? "Waze" : navApp === "google" ? "Google Maps" : "Start"}
                 </button>
+              )}
+              {/* The other app, one tap away (25 Nov 2026): it was a row in the ⋯.
+                  It opens that app once and does not change which one the button uses. */}
+              {legCard && place && navApp && directionsUrl(otherApp(navApp), navTarget) && (
+                <p className="-mt-2 mb-4 text-center text-[13px]" style={{ color: "rgba(26,26,46,0.55)" }}>
+                  or{" "}
+                  <button
+                    type="button"
+                    data-testid="leg-start-other"
+                    onClick={() => { const url = directionsUrl(otherApp(navApp), navTarget); if (url) window.open(url, "_blank"); }}
+                    className="relative font-medium underline underline-offset-2"
+                    style={{ color: "#1A1A2E" }}
+                  >
+                    <span aria-hidden="true" className="absolute -inset-x-4 -top-2 -bottom-5" />
+                    {otherApp(navApp) === "waze" ? "Waze" : "Google Maps"}
+                  </button>
+                </p>
               )}
               {/* The note was written for the old place (14 Nov 2026): one tap clears it, nothing is cleared unasked. */}
               {legCard && staleNoteFor && !readOnly && (localCard.details as { notes?: string } | null)?.notes && (
@@ -2271,7 +2299,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             {/* The Booked switch moved into the ⋯ menu at the top (6 Oct 2026). */}
 
             {/* Add details / collapse toggle — owner only, not shown for notes */}
-            {!readOnly && ((place && place.sub_type !== "note") || noteKind) && (
+            {/* Not on a drive (25 Nov 2026): notes, a checklist and Recommended by are not
+                what a drive needs. A train, bus or ferry keeps it for its ticket. */}
+            {!readOnly && !(legCard && (readMode(localCard.details) ?? "drive") === "drive") && ((place && place.sub_type !== "note") || noteKind) && (
               <button
                 onClick={() => setShowEmptyFields((v) => !v)}
                 data-walk="card-add-details"
@@ -2295,7 +2325,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               <p className="mt-7 w-full py-3 text-center text-[13px] font-medium" style={{ color: "rgba(26,26,46,0.45)" }}>
                 {deletedToast(localCard)} — undo above{/* named, was "Card deleted" (6 Oct 2026, delight audit) */}
               </p>
-            ) : !readOnly ? (
+            ) : !readOnly && !legCard ? (
               <button
                 onClick={handleDelete}
                 disabled={isDeleting}

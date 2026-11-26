@@ -45,7 +45,9 @@ const FILLED: Record<RowKey, string> = {
 // is the same box as TripCard's ⋯ button (top-1, h-9), mirrored to the left, and
 // wears the same soft shadow, since the top of a photo is often bright sky.
 // Its 8px of side padding puts the first icon over the caption's left edge.
-const GROUP = "pointer-events-auto absolute left-[9px] top-1 z-[1] flex h-9 items-center gap-[10px] whitespace-nowrap rounded-full px-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white";
+// Swapped the same evening from his mock ("Build and swap"): the icons are at
+// the top RIGHT and the ⋯ at the top left, still on one line.
+const GROUP = "pointer-events-auto absolute right-[9px] top-1 z-[1] flex h-9 items-center gap-[10px] whitespace-nowrap rounded-full px-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white";
 const SHADOW = { filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.55))" } as const;
 
 export default function BookingMarks({ title, marks, href }: { title: string; marks: BookingMark[]; /** Bookings for this journey; null draws the marks without a link. */ href: string | null }) {

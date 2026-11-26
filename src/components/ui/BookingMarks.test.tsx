@@ -85,7 +85,8 @@ describe("the booking marks", () => {
 });
 
 describe("the marks on a journey's card", () => {
-  it("sit at the photo's top left, on one line with the ⋯ at the top right", () => {
+  it("sit at the photo's top RIGHT, on one line with the ⋯ at the top left", () => {
+    // Swapped the same evening (25 Nov 2026), from his mock: "Build and swap".
     // Brennan, 25 Nov 2026 (final): "The top left looks alright but it needs to be on the same
     // line as the three dots on the far right." Same top edge and same height as the ⋯ button.
     render(<TripCard trip={trip} href="/trips/t1/plan" owner marks={voss} />);
@@ -95,8 +96,10 @@ describe("the marks on a journey's card", () => {
       expect(marks.className.split(" "), cls).toContain(cls);
       expect(dots.className.split(" "), cls).toContain(cls);
     }
-    expect(marks.className).toContain("left-");
-    expect(dots.className).toContain("right-1");
+    expect(marks.className).toContain("right-[9px]");
+    expect(marks.className).not.toContain("left-");
+    expect(dots.className.split(" ")).toContain("left-1");
+    expect(dots.className).not.toContain("right-1");
     // not in the heading any more: the name stands alone
     expect(screen.getByTestId("trip-caption").querySelector("h3")!.textContent).toBe("Chris Voss Training");
   });
