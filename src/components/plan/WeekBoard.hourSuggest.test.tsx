@@ -58,6 +58,8 @@ async function typeInEmptyHour(text: string) {
   render(<WeekBoard trip={trip} initialDays={days} initialSaved={[savedMario]} />);
   const col = document.querySelector<HTMLElement>("[data-daycol='d2']")!;
   fireEvent.click(col, { clientY: 0 });
+  // The empty hour asks what it is first (26 Nov 2026); the box is behind Note.
+  fireEvent.click(screen.getByRole("menuitem", { name: "Note" }));
   const box = screen.getByLabelText("Name the plan");
   fireEvent.change(box, { target: { value: text } });
   await act(async () => { vi.advanceTimersByTime(350); });

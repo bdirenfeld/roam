@@ -139,7 +139,7 @@ export default function TripCard({ trip, href, owner = false, marks, marksPhoneD
                 }}
               />
 
-              {isSample && <span className="absolute top-3 right-3 rounded-full bg-white px-3 py-1 text-[13px] font-semibold text-activity">Example</span>}
+              {isSample && <span className="absolute top-3 left-3 rounded-full bg-white px-3 py-1 text-[13px] font-semibold text-activity">Example</span>}
 
             </div>
           </article>
@@ -165,8 +165,8 @@ export default function TripCard({ trip, href, owner = false, marks, marksPhoneD
           </p>
         </div>
 
-        {/* The booking marks: the photo's top RIGHT, on one line with the ⋯ at its top left
-            (swapped 25 Nov 2026, his mock). The Example badge moved right with them: it has no marks. */}
+        {/* The booking marks: the photo's top LEFT, on one line with the ⋯ at its top right
+            (swapped right on 25 Nov, back on the 26th at his ask: final). */}
         {marks && (
           <BookingMarks
             title={isSample ? SAMPLE_NAME : trip.title}
@@ -180,7 +180,7 @@ export default function TripCard({ trip, href, owner = false, marks, marksPhoneD
             on phones). Delete stays behind its own confirmation. */}
         <button
           onClick={() => setMenuOpen((v) => !v)}
-          className="absolute top-1 left-1 z-10 w-9 h-9 rounded-full flex items-center justify-center opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity duration-150"
+          className="absolute top-1 right-1 z-10 w-9 h-9 rounded-full flex items-center justify-center opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity duration-150"
           aria-label={`Options for ${trip.title}`}
           aria-haspopup="menu"
           aria-expanded={menuOpen}
@@ -200,7 +200,6 @@ export default function TripCard({ trip, href, owner = false, marks, marksPhoneD
           // isn't needed; covers are picked from the destination). Copy to new
           // dates first, owner only (7 Oct 2026, mock t07).
           <JourneyMenu
-            className="absolute top-10 left-2"
             onClose={() => setMenuOpen(false)}
             items={[
               // Settings without going into the journey first (Brennan, 16 Nov 2026):

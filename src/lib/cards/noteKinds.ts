@@ -122,3 +122,16 @@ export function withNoteKind(details: Record<string, unknown> | null | undefined
 
 /** What the board says for a typed note with no place yet. */
 export const PLACE_TO_COME = "place to come";
+
+/**
+ * A card made from the week's hour menu (26 Nov 2026) and left empty: a kind
+ * and nothing else. No place, no name, no sub-kind, no note. The week removes
+ * one of these when its card is closed, so a click that led nowhere leaves nothing.
+ */
+export function isBlankTyped(card: { place_id?: string | null; place?: unknown; details?: unknown }): boolean {
+  if (card.place_id || card.place) return false;
+  const d = (card.details ?? null) as Record<string, unknown> | null;
+  if (!d || typeof d.kind !== "string" || d.kind === "note") return false;
+  const has = (k: string) => typeof d[k] === "string" && (d[k] as string).trim() !== "";
+  return !has("title") && !has("notes") && !has("kind_sub");
+}

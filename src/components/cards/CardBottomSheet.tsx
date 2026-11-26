@@ -345,7 +345,10 @@ function TitleEditor({
   onSave,
   autoEdit = false,
   onDone,
+  placeholder,
 }: {
+  /** A card with no name yet (the week's hour menu, 26 Nov 2026): the box shows, empty, saying this. */
+  placeholder?: string;
   value: string;
   onSave: (v: string) => void;
   /** Open as the input (a travel card's ⋯ → Rename, 14 Nov 2026). */
@@ -367,9 +370,11 @@ function TitleEditor({
     onDone?.();
   };
 
-  return editing ? (
+  const blank = value === "" && placeholder != null;
+  return editing || blank ? (
     <input
-      autoFocus
+      autoFocus={editing}
+      placeholder={placeholder}
       value={draft}
       onChange={(e) => setDraft(e.target.value)}
       onBlur={commit}
@@ -434,6 +439,13 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   const [showLinkSheet,     setShowLinkSheet]     = useState(false);
   const [showAttachments,   setShowAttachments]   = useState(false);
   const [showEmptyFields,   setShowEmptyFields]   = useState(false);
+  // Opened with no place and no name (26 Nov 2026): the blank card the week's
+  // hour menu makes. Only such a card offers its kinds in a row; a card that
+  // arrived with a name keeps the pill as its one door to the kind.
+  const [startedBlank] = useState(() => {
+    const t = (card.details as { title?: unknown } | null)?.title;
+    return !card.place && !card.place_id && !(typeof t === "string" && t.trim());
+  });
   // A place's card has its own walkthrough (directions, files, Add details).
   useWalkthrough(readOnly ? null : "card", { ready: true, used: false });
   const [isDeleting,        setIsDeleting]        = useState(false);
@@ -1302,7 +1314,12 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
 
   // ── Route to sub-type component ───────────────────────────
   // A typed note with no place yet gets its kind's fields (11 Nov 2026).
-  const key = place ? `${place.type}/${place.sub_type ?? ""}` : (noteKind?.detailKey ?? "note");
+  // A place-less card's sub-kind brings its own details (26 Nov 2026): until now every
+  // typed Food was a restaurant and every Activity an Explore, whatever the pill said.
+  const kindType = isNote ? (localCard.details as { kind_type?: unknown } | null)?.kind_type : null;
+  const kindSub = isNote ? (localCard.details as { kind_sub?: unknown } | null)?.kind_sub : null;
+  const typedKey = noteKind && (noteKind.key === "activity" || noteKind.key === "food") && kindType === noteKind.key && typeof kindSub === "string" && kindSub ? `${noteKind.key}/${kindSub}` : null;
+  const key = place ? `${place.type}/${place.sub_type ?? ""}` : (typedKey ?? noteKind?.detailKey ?? "note");
   const detailType = place?.type ?? noteKind?.cardType ?? null;
 
   function renderDetail() {
@@ -1821,6 +1838,14 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   onSave={(v) => void saveDetailsPatch({ ...(localCard.details as Record<string, unknown>), title: v, named: true })}
                 />
               )
+            ) : isNote && noteKind && !readOnly ? (
+              // A typed card with no place has a name of its own to give (26 Nov 2026).
+              <TitleEditor
+                value={typeof (localCard.details as { title?: unknown } | null)?.title === "string" ? ((localCard.details as { title: string }).title).trim() : ""}
+                placeholder="Name it"
+                autoEdit={startedBlank}
+                onSave={(v) => void saveDetailsPatch({ ...(localCard.details as Record<string, unknown>), title: v })}
+              />
             ) : place && !readOnly ? (
               <TitleEditor
                 value={cardTitle(localCard)}
@@ -1837,6 +1862,27 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 error={noteError}
                 onPick={(gid) => void handleNoteConvert(noteKind, gid)}
               />
+            )}
+            {/* Know the place: the row above. Don't yet: say what kind it is (26 Nov 2026,
+                "some times you will know the place and some times you won't"). Only on a
+                card opened blank, and only until a kind is picked; after that it is the pill. */}
+            {isNote && noteKind && !readOnly && startedBlank && (noteKind.key === "activity" || noteKind.key === "food" || noteKind.key === "logistics") && !kindSub && (
+              <div className="mt-3" data-testid="blank-kinds">
+                <p className="mb-1.5 text-[11.5px]" style={{ color: "rgba(26,26,46,0.55)" }}>Don&rsquo;t know the place yet? Pick what kind it is:</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {(SUB_TYPE_OPTIONS[noteKind.key] ?? []).filter((o) => o.value !== "transit").map((o) => (
+                    <button
+                      key={o.value}
+                      type="button"
+                      onClick={() => void saveDetailsPatch({ ...withNoteKind(localCard.details as Record<string, unknown>, noteKindFor(noteKind.key, o.value)), kind_type: noteKind.key, kind_sub: o.value })}
+                      className="rounded-full px-3 py-1.5 text-[12.5px] font-medium text-[#1A1A2E] hover:bg-[#1A1A2E] hover:text-white transition-colors"
+                      style={{ boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.16)" }}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
             {/* One quiet line under the route, "From Lusaka · change" (7 Oct
                 2026, mock t05): it replaced the From and To rows in the body,

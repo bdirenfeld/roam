@@ -36,7 +36,7 @@ import { queuedUpdate, queuedInsert, queuedDelete } from "@/lib/offline/queuedWr
 import { createClient } from "@/lib/supabase/client";
 import { scheduleCardOnDay, unscheduleCard } from "@/lib/scheduleCard";
 import { PIN_COLORS, getMaterialIconHTML, getGlyphHTML } from "@/lib/mapPins";
-import { readNoteKind, PLACE_TO_COME } from "@/lib/cards/noteKinds";
+import { readNoteKind, isBlankTyped, PLACE_TO_COME } from "@/lib/cards/noteKinds";
 import { iconSubType, isTravelLeg, legDestTitle } from "@/lib/travel/leg";
 import { joinLegs, stripDest, stripDuration } from "@/lib/week/travelStrip";
 import { autoDayTitle } from "@/lib/autoDayTitle";
@@ -45,7 +45,7 @@ import { cardTimes } from "@/lib/cardTime";
 import CardBottomSheet from "@/components/cards/CardBottomSheet";
 import DocumentsSheet from "./DocumentsSheet";
 import AddTravelSheet from "./AddTravelSheet";
-import WeekTravelRow from "./WeekTravelRow";
+import WeekHourMenu, { type HourMenuPick } from "./WeekHourMenu";
 import StartHere from "./StartHere";
 import { useBookingUpload } from "@/components/trip/useBookingUpload";
 import WeekMap from "./WeekMap";
@@ -181,6 +181,10 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
   // Travel from the empty hour (25 Nov 2026): the phone's Add travel sheet, for the day and hour clicked.
   const [travelAt, setTravelAt] = useState<{ dayId: string; min: number } | null>(null);
   const [draftText, setDraftText] = useState("");
+  // What is it? (26 Nov 2026): a click on an empty hour asks first (WeekHourMenu).
+  const [hourMenu, setHourMenu] = useState<{ dayId: string; dayIdx: number; min: number } | null>(null);
+  // Cards the menu made this visit: one closed still blank is removed (isBlankTyped).
+  const freshRef = useRef<Set<string>>(new Set());
   // Bulk actions (25 Sep 2026): Shift-click blocks to pick them; a tray offers
   // Move to a day, Take off the day, Delete. Esc or ✕ clears.
   const [pickedBlocks, setPickedBlocks] = useState<Set<string>>(() => new Set());
@@ -748,7 +752,32 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
     const t = e.target as HTMLElement;
     if (t !== e.currentTarget && !t.dataset.hourline) return;   // a block, not the empty hour
     const min = minAtY(e.clientY); if (min === null) return;
-    setDraftText(""); setDraftBlock({ dayId, dayIdx, min });
+    setHourMenu({ dayId, dayIdx, min });
+  };
+  // The menu's answer. A type makes a blank card of that kind at that hour and
+  // opens the card he already has; Travel opens Add travel; Note is the old box.
+  const pickHour = async (k: HourMenuPick) => {
+    const at = hourMenu; setHourMenu(null);
+    if (!at) return;
+    if (k === "note") { setDraftText(""); setDraftBlock(at); return; }
+    if (k === "travel") { setTravelAt({ dayId: at.dayId, min: at.min }); return; }
+    const created = await scheduleCardOnDay(supabase, { tripId: trip.id, dayId: at.dayId, placeId: null, place: null, details: { kind: k } as Card["details"], startTime: toTime(at.min), endTime: toTime(newBlockEnd(at.min)) });
+    if (!created) { toast({ message: "Couldn't add it. Try again." }); return; }
+    freshRef.current.add(created.id);
+    setDays((prev) => prev.map((x) => (x.id === at.dayId ? { ...x, cards: [...x.cards, created] } : x)));
+    setSelectedCard(created);
+  };
+  // Closing the card: one the menu made and nobody filled in goes, quietly.
+  // A tick later, so a name committed by the same click has reached the board.
+  const closeSelected = () => {
+    const id = selectedCard?.id; setSelectedCard(null);
+    if (!id || !freshRef.current.delete(id)) return;
+    setTimeout(() => {
+      const c = daysRef.current.flatMap((d) => d.cards).find((x) => x.id === id);
+      if (!c || !isBlankTyped(c)) return;
+      setDays((prev) => prev.map((d) => ({ ...d, cards: d.cards.filter((x) => x.id !== id) })));
+      void queuedDelete("cards", { id });
+    }, 0);
   };
   // Same target test and same snapped minute as onColumnClick, so the slot is
   // where the click lands. Over a block, mid-drag, or on a folded day: none.
@@ -1313,7 +1342,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
                         {h < HOUR_END && <div data-halfhour="1" className="absolute left-0 right-0 pointer-events-none" style={{ top: pph / 2 - 1, borderTop: "1px dashed rgba(26,26,46,0.13)" }} />}
                       </div>
                     ))}
-                    {canHover && slot && slot.dayIdx === di && !collapsed(di) && !draftBlock && !ghost && !dragChip && (
+                    {canHover && slot && slot.dayIdx === di && !collapsed(di) && !draftBlock && !hourMenu && !ghost && !dragChip && (
                       <div
                         data-testid="hover-slot"
                         aria-hidden
@@ -1321,6 +1350,24 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
                         style={{ top: ((slot.min - HOUR_START * 60) / 60) * pph, height: pph, background: "rgba(26,26,46,0.05)", border: "1px dashed rgba(26,26,46,0.18)", zIndex: 0, padding: "4px 6px" }}
                       >
                         <div className="text-[9.5px] text-activity/40 tabular-nums">{slotLabel(slot.min, newBlockEnd(slot.min))}</div>
+                      </div>
+                    )}
+                    {hourMenu && hourMenu.dayId === day.id && (
+                      <div
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => e.stopPropagation()}
+                        data-testid="hour-menu-slot"
+                        className="absolute left-[3px] right-[3px] rounded-[6px] z-[21]"
+                        style={{ top: ((hourMenu.min - HOUR_START * 60) / 60) * pph, height: pph, background: "rgba(26,26,46,0.05)", border: "1px dashed rgba(26,26,46,0.35)", padding: "4px 6px" }}
+                      >
+                        <div className="text-[9.5px] text-activity/60 tabular-nums">{fmt12(hourMenu.min)} – {fmt12(newBlockEnd(hourMenu.min))}</div>
+                        <WeekHourMenu
+                          when={`${new Date(day.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" })} · ${fmt12(hourMenu.min)}`}
+                          up={((HOUR_END * 60 - hourMenu.min) / 60) * pph < 270}
+                          right={di > 0 && di === laidOut.length - 1}
+                          onPick={(k) => void pickHour(k)}
+                          onClose={() => setHourMenu(null)}
+                        />
                       </div>
                     )}
                     {draftBlock && draftBlock.dayId === day.id && (
@@ -1346,7 +1393,6 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
                         />
                         <div className="text-[9.5px] text-activity/60 tabular-nums">{fmt12(draftBlock.min)} – {fmt12(newBlockEnd(draftBlock.min))}</div>
                         <HourSuggestList items={suggest.items} savedCount={suggest.savedCount} active={suggest.active} onPick={(p) => void commitDraft(p)} />
-                        {!draftText.trim() && <WeekTravelRow onPick={() => { setTravelAt({ dayId: draftBlock.dayId, min: draftBlock.min }); setDraftBlock(null); }} />}
                       </div>
                     )}
                     {placed.map((b) => {
@@ -1572,7 +1618,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
           card={selectedCard}
           readOnly={readOnly}
           onOpenCard={setSelectedCard}
-          onClose={() => setSelectedCard(null)}
+          onClose={closeSelected}
           onCardUpdate={handleCardUpdate}
           onCardDelete={handleCardDelete}
           onCardCopied={handleCardCopied}

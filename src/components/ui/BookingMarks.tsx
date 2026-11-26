@@ -47,7 +47,9 @@ const FILLED: Record<RowKey, string> = {
 // Its 8px of side padding puts the first icon over the caption's left edge.
 // Swapped the same evening from his mock ("Build and swap"): the icons are at
 // the top RIGHT and the ⋯ at the top left, still on one line.
-const GROUP = "pointer-events-auto absolute right-[9px] top-1 z-[1] flex h-9 items-center gap-[10px] whitespace-nowrap rounded-full px-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white";
+// Back to the left on the 26th: "the icons at the top left and the three dots
+// at the top right", phone and computer alike. FINAL; do not swap them again unasked.
+const GROUP = "pointer-events-auto absolute left-[9px] top-1 z-[1] flex h-9 items-center gap-[10px] whitespace-nowrap rounded-full px-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white";
 const SHADOW = { filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.55))" } as const;
 
 export default function BookingMarks({ title, marks, href }: { title: string; marks: BookingMark[]; /** Bookings for this journey; null draws the marks without a link. */ href: string | null }) {

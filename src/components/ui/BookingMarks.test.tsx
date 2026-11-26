@@ -85,8 +85,9 @@ describe("the booking marks", () => {
 });
 
 describe("the marks on a journey's card", () => {
-  it("sit at the photo's top RIGHT, on one line with the ⋯ at the top left", () => {
-    // Swapped the same evening (25 Nov 2026), from his mock: "Build and swap".
+  it("sit at the photo's top LEFT, on one line with the ⋯ at the top right (back where they were)", () => {
+    // Swapped to the right on the evening of 25 Nov; on the 26th he asked for
+    // "the icons at the top left and the three dots at the top right" on both.
     // Brennan, 25 Nov 2026 (final): "The top left looks alright but it needs to be on the same
     // line as the three dots on the far right." Same top edge and same height as the ⋯ button.
     render(<TripCard trip={trip} href="/trips/t1/plan" owner marks={voss} />);
@@ -96,10 +97,10 @@ describe("the marks on a journey's card", () => {
       expect(marks.className.split(" "), cls).toContain(cls);
       expect(dots.className.split(" "), cls).toContain(cls);
     }
-    expect(marks.className).toContain("right-[9px]");
-    expect(marks.className).not.toContain("left-");
-    expect(dots.className.split(" ")).toContain("left-1");
-    expect(dots.className).not.toContain("right-1");
+    expect(marks.className).toContain("left-[9px]");
+    expect(marks.className).not.toContain("right-");
+    expect(dots.className.split(" ")).toContain("right-1");
+    expect(dots.className).not.toContain("left-1");
     // not in the heading any more: the name stands alone
     expect(screen.getByTestId("trip-caption").querySelector("h3")!.textContent).toBe("Chris Voss Training");
   });

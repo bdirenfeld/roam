@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { NOTE_KINDS, noteKind, convertedDetails, noteKindFor, noteDefaults, withNoteKind } from "./noteKinds";
+import { NOTE_KINDS, noteKind, convertedDetails, noteKindFor, noteDefaults, withNoteKind, isBlankTyped } from "./noteKinds";
 import { isTravelLeg, iconSubType } from "@/lib/travel/leg";
 import { materialFontUrl } from "@/lib/mapPins";
 
@@ -83,5 +83,23 @@ describe("a note typed from the card sheet (19 Nov 2026)", () => {
     expect(noteDefaults({ kind: "logistics", kind_type: "logistics", kind_sub: "car_rental" })).toEqual({ type: "logistics", sub_type: "car_rental" });
     expect(noteDefaults({ kind: "food" })).toBeNull();
     expect(withNoteKind({ kind: "food", kind_type: "food", kind_sub: "bakery", notes: "x" }, "note")).toEqual({ notes: "x" });
+  });
+});
+
+describe("isBlankTyped: a card made from the week's hour menu and left empty (26 Nov 2026)", () => {
+  const c = (details: unknown, extra: Record<string, unknown> = {}) => ({ place_id: null, place: null, details, ...extra });
+  it("only a kind on it is blank", () => {
+    expect(isBlankTyped(c({ kind: "food" }))).toBe(true);
+    expect(isBlankTyped(c({ kind: "activity", title: "   " }))).toBe(true);
+  });
+  it("a name, a sub-kind, a note or a place means it is not", () => {
+    expect(isBlankTyped(c({ kind: "food", title: "Dinner" }))).toBe(false);
+    expect(isBlankTyped(c({ kind: "food", kind_sub: "coffee" }))).toBe(false);
+    expect(isBlankTyped(c({ kind: "food", notes: "ask" }))).toBe(false);
+    expect(isBlankTyped(c({ kind: "food" }, { place_id: "p1" }))).toBe(false);
+  });
+  it("a plain note is never a blank typed card", () => {
+    expect(isBlankTyped(c({}))).toBe(false);
+    expect(isBlankTyped(c(null))).toBe(false);
   });
 });
