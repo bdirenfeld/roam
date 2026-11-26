@@ -2661,7 +2661,7 @@ No grey helper text in this sheet, no "what's sent" link (his ruling); the priva
 - Computer: the marks open `/trips/{id}/plan?bookings=1`. Phone: `/trips/{id}/days/{day}?bookings=1`, read once by `DayViewClient` (`takeBookingsFlag`). No day to open: marks without a link.
 - A lesson from the map that still holds: Mapbox will not zoom out past the world filling the map's HEIGHT, so a tall phone map can never show the whole world.
 - Local-only phone viewer screen `mapj` (the Journeys list with marks; never committed).
-- The marks are QUIET on purpose (same day, his words: at 17px and full white they were "competing with the name of the trip"): 13px, soft white booked / fainter not, and booked is a plain 7px green dot with no tick in it.
+- How booked is drawn, after four tries on 25 Nov 2026: a tick in a green dot "competed with the name of the trip"; a plain green dot was "pretty bad. It's just a green dot"; a tick beside each icon was "too wide"; green icons he thought "the worst" (I had recommended them; he was right, green on Tuscany's hills is hard to read). FINAL: booked is the FILLED Material Symbol in white, not booked is the OUTLINE, faint (15px). No dot, no tick, no green. Do not re-open this.
 
 ## Travel from the week's empty hour, and Drive / Train on a note (25 Nov 2026)
 - His report: on a computer a drive took four steps (type in "What's the plan?", Enter, open the note, re-type it) and the picker had no "Drive". The phone had solved it on 14 Nov (Add a place → Travel → `AddTravelSheet`); the week just never opened it.

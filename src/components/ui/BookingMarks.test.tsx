@@ -33,19 +33,32 @@ describe("the booking marks", () => {
     render(<BookingMarks href={WEEK} title="Chris Voss Training" marks={voss} />);
     const marks = Array.from(screen.getByTestId("booking-marks").querySelectorAll("[data-mark]"));
     expect(marks.map((m) => [m.getAttribute("data-mark"), m.getAttribute("data-booked")])).toEqual([["flights", "no"], ["stays", "yes"], ["car", "no"]]);
-    // The tick is the small green dot: one, on the stay.
-    expect(marks.map((m) => m.querySelectorAll("span").length)).toEqual([0, 1, 0]);
     expect(marks.map((m) => m.getAttribute("title"))).toEqual(["Flights: still to book", "Stays: booked", "Car: still to book"]);
   });
 
-  it("is quiet beside the name: small icons, and booked is a plain green dot with no tick drawn in it", () => {
-    // Brennan, 25 Nov 2026: at 17px and full white they "competed with the name of the trip".
+  it("is filled in when booked and a faint outline when not: no dot, no tick, nothing beside the icon", () => {
+    // Brennan, 25 Nov 2026, after a tick in a dot (competed with the name), a plain green dot
+    // ("pretty bad"), a tick beside (too wide) and green icons (he thought them the worst):
+    // the phone's own on/off convention, a filled drawing against an outline, in white.
     render(<BookingMarks href={WEEK} title="Chris Voss Training" marks={voss} />);
     const marks = Array.from(screen.getByTestId("booking-marks").querySelectorAll("[data-mark]"));
-    expect(marks.map((m) => m.querySelector("svg")!.getAttribute("width"))).toEqual(["13", "13", "13"]);
-    const dot = marks[1].querySelector("span")!;
-    expect(dot.querySelector("svg")).toBeNull();
-    expect(dot.className).toContain("h-[7px]");
+    expect(marks.map((m) => m.getAttribute("data-drawn"))).toEqual(["outline", "filled", "outline"]);
+    // one drawing each and nothing else inside the mark
+    expect(marks.map((m) => m.children.length)).toEqual([1, 1, 1]);
+    const paths = marks.map((m) => m.querySelector("path")!.getAttribute("d"));
+    expect(paths[1]).not.toBe(paths[0]);
+    const colours = marks.map((m) => (m.querySelector("svg") as SVGElement).style.color);
+    expect(colours[1]).toBe("rgb(255, 255, 255)");
+    expect(colours[0]).toBe(colours[2]);
+    expect(colours[0]).not.toBe(colours[1]);
+  });
+
+  it("the same icon, booked and not, is two different drawings", () => {
+    const { unmount } = render(<BookingMarks href={WEEK} title="x" marks={[{ key: "stays", booked: true }]} />);
+    const filled = screen.getByTestId("booking-marks").querySelector("path")!.getAttribute("d");
+    unmount();
+    render(<BookingMarks href={WEEK} title="x" marks={[{ key: "stays", booked: false }]} />);
+    expect(screen.getByTestId("booking-marks").querySelector("path")!.getAttribute("d")).not.toBe(filled);
   });
 
   it("is one link to that journey's Bookings, named in words, with a thumb-sized target", () => {
