@@ -244,6 +244,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
   // upload (useBookingUpload, 6 Oct 2026 taps audit): several files in one
   // pick, one check-and-add sheet, the toast with Undo.
   const upload = useBookingUpload({
+    onOpen: () => setShowDocs(false),
     tripId: trip.id,
     days,
     onAdded: (cards, deletedIds) => {
@@ -1662,7 +1663,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
       )}
 
       {showDocs && (
-        <DocumentsSheet tripId={trip.id} onClose={() => setShowDocs(false)} onImport={() => { setShowDocs(false); upload.pick(); }} onAddByHand={() => { setShowDocs(false); upload.addByHand(); }} />
+        <DocumentsSheet tripId={trip.id} onClose={() => setShowDocs(false)} reading={upload.reading} readingLabel={upload.readingLabel} onImport={upload.pick} onAddByHand={() => { setShowDocs(false); upload.addByHand(); }} />
       )}
 
       {/* Journey notes — bottom sheet on mobile, modal at md+ */}
@@ -1676,7 +1677,7 @@ export default function PlanBoard({ trip, initialDays, initialLists, initialNote
       )}
 
 
-      {upload.reading && (
+      {upload.reading && !showDocs && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white text-[13px] font-medium px-4 py-2.5 rounded-full shadow-lg pointer-events-none animate-in fade-in">
           {upload.readingLabel}
         </div>

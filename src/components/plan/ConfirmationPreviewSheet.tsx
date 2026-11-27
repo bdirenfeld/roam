@@ -10,6 +10,7 @@ import { resolvePlace } from "@/lib/confirmations/resolvePlace";
 import { bookingOutside, dayFor, shortDay } from "@/lib/confirmations/outsideDates";
 import { extendJourney } from "@/lib/confirmations/extendJourney";
 import { whenLine, type FileRef } from "@/lib/confirmations/batch";
+import { attachBookingFile } from "@/lib/booking/attachFile";
 import { existingFor, fillFrom, type DayCard } from "@/lib/confirmations/fillPlaceholder";
 import { blankBooking, flightTitle, flightAirport, type HandKind } from "@/lib/confirmations/byHand";
 import { portLabel, nextPort, type CruisePort } from "@/lib/confirmations/ports";
@@ -367,6 +368,11 @@ export default function ConfirmationPreviewSheet({
       const first = items[mine[0]];
       const documentType = first?.type.startsWith("flight") ? "flight" : first?.type ?? "activity";
       const id = crypto.randomUUID();
+      const cardIds = createdCards.filter((_, k) => mine.includes(cardItem[k])).map((c) => finalId.get(c.id) ?? c.id);
+      // The file itself, on every card it made (27 Nov 2026: "when I click on attachments
+      // in the travel card that was created, I don't see the attachment I uploaded").
+      const blob = sources[f].blob;
+      if (blob) await attachBookingFile(supabase, { tripId, key: id, cardIds, file: blob, name: sources[f].name, type: sources[f].type });
       const { error: docError } = await queuedInsert("documents", {
         id,
         trip_id:       tripId,
@@ -375,7 +381,7 @@ export default function ConfirmationPreviewSheet({
         file_type:     sources[f].type,
         document_type: documentType,
         parsed_data:   mine.map((i) => items[i]),
-        card_ids:      createdCards.filter((_, k) => mine.includes(cardItem[k])).map((c) => finalId.get(c.id) ?? c.id),
+        card_ids:      cardIds,
       });
       if (docError) console.error("[ConfirmationPreviewSheet] Failed to save document record:", docError);
       else docIds.push(id);

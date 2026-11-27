@@ -152,6 +152,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
   // Upload a booking from the week (1 Oct 2026): a new journey's Start here,
   // and Bookings' Upload, which did nothing here. The cards land on their days.
   const upload = useBookingUpload({
+    onOpen: () => setShowDocs(false),
     tripId: trip.id,
     days,
     // The cards go onto their days, but not as a plan: draftCreated would also
@@ -1645,7 +1646,7 @@ export default function WeekBoard({ trip, initialDays, initialSaved, readOnly = 
           onCardRemoved={(id) => setDays((prev) => prev.map((x) => ({ ...x, cards: x.cards.filter((c) => c.id !== id) })))}
         />
       )}
-      {showDocs && <DocumentsSheet tripId={trip.id} onClose={() => setShowDocs(false)} onImport={readOnly ? undefined : () => { setShowDocs(false); upload.pick(); }} onAddByHand={readOnly ? undefined : () => { setShowDocs(false); upload.addByHand(); }} />}
+      {showDocs && <DocumentsSheet tripId={trip.id} onClose={() => setShowDocs(false)} reading={upload.reading} readingLabel={upload.readingLabel} onImport={readOnly ? undefined : upload.pick} onAddByHand={readOnly ? undefined : () => { setShowDocs(false); upload.addByHand(); }} />}
       {upload.element}
     </div>
   );

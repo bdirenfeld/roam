@@ -8,7 +8,8 @@ import { useWalkthrough } from "@/components/onboarding/JourneyGuidanceContext";
 import { useSheetDrag } from "@/hooks/useSheetDrag";
 import FileViewer, { type ViewableFile } from "@/components/ui/FileViewer";
 import { cardLabel, documentLabel, rowForCard, rowForDocument, type BookingFile } from "@/lib/booking/files";
-import ToBookSection from "./ToBookSection";
+import ToBookSection, { ReadingLine } from "./ToBookSection";
+import { listedOnce } from "@/lib/booking/attachFile";
 
 // Bookings (6 Oct 2026 redesign, mock approved): for the owner, the three
 // booking rows with each upload inside its own row (ToBookSection); for anyone
@@ -23,6 +24,9 @@ interface Props {
   onImport?: () => void;
   /** Adds a booking by hand: the host's upload sheet, opened empty. */
   onAddByHand?: () => void;
+  /** A confirmation is being read: Bookings stays open and says so (27 Nov 2026). */
+  reading?: boolean;
+  readingLabel?: string;
 }
 
 // The kind an upload record names, for a file that matches no booking row.
@@ -43,7 +47,7 @@ type AttachmentRow = {
   cards: { details: Record<string, unknown> | null; places: { title: string | null; sub_type: string | null } | null } | null;
 };
 
-export default function DocumentsSheet({ tripId, onClose, onImport, onAddByHand }: Props) {
+export default function DocumentsSheet({ tripId, onClose, onImport, onAddByHand, reading, readingLabel }: Props) {
   const supabase = createClient();
   const { toast } = useToast();
   const listRef  = useRef<HTMLDivElement>(null);
@@ -85,14 +89,21 @@ export default function DocumentsSheet({ tripId, onClose, onImport, onAddByHand 
         .order("created_at", { ascending: false }),
     ]).then(async ([d, a]) => {
       if (cancelled) return;
-      setDocs((d.data ?? []) as Document[]);
+      const allDocs = (d.data ?? []) as Document[];
       // card-attachments is a private bucket: the stored /object/public/ URL
       // never resolves ("Bucket not found" on the phone). Sign every path in
       // one call before the rows render, so each tap is a plain link — no
       // await in the gesture, which iOS Safari would block.
-      const rowsRaw = (a.data ?? []) as unknown as AttachmentRow[];
+      const allRows = (a.data ?? []) as unknown as AttachmentRow[];
       const pathOf = (r: { file_path: string | null; file_url: string | null }) =>
         r.file_path ?? (r.file_url ? decodeURIComponent(r.file_url.split("/card-attachments/")[1] ?? "") : "") ?? "";
+      // One entry per file (27 Nov 2026): an upload is now kept on each card it made.
+      const once = listedOnce(
+        allRows.map((r) => ({ r, path: pathOf(r), cardId: r.card_id, fileName: r.file_name })),
+        allDocs.map((doc) => ({ doc, cardIds: doc.card_ids, fileName: doc.file_name })),
+      );
+      const rowsRaw = once.atts.map((x) => x.r);
+      setDocs(once.docs.map((x) => x.doc));
       const paths = rowsRaw.map(pathOf).filter(Boolean);
       const signed = new Map<string, string>();
       if (paths.length) {
@@ -211,6 +222,8 @@ export default function DocumentsSheet({ tripId, onClose, onImport, onAddByHand 
             onAddByHand={onAddByHand}
             onRemoveDocument={removeDocument}
             onOwner={setOwner}
+            reading={reading}
+            readingLabel={readingLabel}
           />
           {/* Everyone else: the files they always saw, as a plain list. */}
           {owner === false && !loading && (
@@ -230,7 +243,9 @@ export default function DocumentsSheet({ tripId, onClose, onImport, onAddByHand 
                   <span className="block text-[12px] truncate" style={{ color: CAPTION }}>{f.detail}</span>
                 </button>
               ))}
-              {onImport && (
+              {onImport && reading ? (
+                <ReadingLine label={readingLabel} />
+              ) : onImport && (
                 <div className="text-center pt-3">
                   <button type="button" onClick={onImport} className="relative text-[13px] underline underline-offset-[3px] py-1.5" style={{ color: CAPTION }}>
                     <span aria-hidden="true" className="absolute -inset-y-1.5 inset-x-0" />

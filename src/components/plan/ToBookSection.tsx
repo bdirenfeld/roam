@@ -76,6 +76,17 @@ function Mark({ state }: { state: CheckRow["state"] }) {
   return <span aria-hidden="true" className="block w-6 h-6 rounded-full" style={{ border: `2px solid ${INK}` }} />;
 }
 
+/** Where the upload link was, while a confirmation is read (27 Nov 2026: "the card
+ *  disappears after you upload the booking so you don't know if it worked"). */
+export function ReadingLine({ label }: { label?: string }) {
+  return (
+    <p role="status" data-testid="bookings-reading" className="flex items-center justify-center gap-2 pt-3 py-1.5 text-[13px] font-medium" style={{ color: INK }}>
+      <span aria-hidden="true" className="w-3.5 h-3.5 rounded-full border-2 animate-spin" style={{ borderColor: RULE, borderTopColor: INK }} />
+      {label ?? "Reading your booking…"}
+    </p>
+  );
+}
+
 /** Opens a Kayak tab. No "noopener" feature: with it window.open returns null
  *  even when the tab opened, and a blocked popup could not be told apart. */
 function openTab(url: string): Window | null {
@@ -100,9 +111,12 @@ interface Props {
   onRemoveDocument?: (id: string) => void;
   /** Tells the host whether this is the owner, once known. */
   onOwner?: (owner: boolean) => void;
+  /** A confirmation is being read (27 Nov 2026): the upload line says so, and Bookings stays open. */
+  reading?: boolean;
+  readingLabel?: string;
 }
 
-export default function ToBookSection({ tripId, onLeave, files = [], onOpenFile, onImport, onAddByHand, onRemoveDocument, onOwner }: Props) {
+export default function ToBookSection({ tripId, onLeave, files = [], onOpenFile, onImport, onAddByHand, onRemoveDocument, onOwner, reading, readingLabel }: Props) {
   const { toast } = useToast();
   const router = useRouter();
   const [data, setData] = useState<Loaded | null>(null);
@@ -455,7 +469,9 @@ export default function ToBookSection({ tripId, onLeave, files = [], onOpenFile,
           ✓ Everything’s booked.
         </p>
       ) : null}
-      {onImport && (
+      {onImport && reading ? (
+        <ReadingLine label={readingLabel} />
+      ) : onImport && (
         <div className="text-center pt-3">
           <button type="button" onClick={onImport} data-walk="bookings-upload" className="relative text-[13px] underline underline-offset-[3px] py-1.5" style={{ color: CAPTION }}>
             {/* 6px up into the 12px under Book on Kayak (half of it), 6px down. */}

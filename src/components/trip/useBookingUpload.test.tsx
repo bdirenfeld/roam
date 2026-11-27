@@ -22,6 +22,8 @@ vi.mock("@/lib/supabase/client", () => ({
 }));
 const toast = vi.fn();
 vi.mock("@/components/ui/Toast", () => ({ useToast: () => ({ toast }) }));
+const attached = vi.hoisted(() => ({ calls: [] as { tripId: string; cardIds: string[]; file: Blob; name: string }[] }));
+vi.mock("@/lib/booking/attachFile", () => ({ attachBookingFile: async (_db: unknown, a: { tripId: string; cardIds: string[]; file: Blob; name: string }) => { attached.calls.push(a); return true; } }));
 
 import { useBookingUpload } from "./useBookingUpload";
 
@@ -53,8 +55,9 @@ const fetchMock = vi.fn(async (url: string, init?: { body?: FormData }) => {
 });
 
 const onAdded = vi.fn();
+const onOpen = vi.fn();
 function Host() {
-  const u = useBookingUpload({ tripId: "t", days, onAdded });
+  const u = useBookingUpload({ tripId: "t", days, onAdded, onOpen });
   return <div><span data-testid="label">{u.reading ? u.readingLabel : ""}</span>{u.element}</div>;
 }
 const file = (name: string) => new File(["x"], name, { type: name.endsWith(".png") ? "image/png" : "application/pdf" });
@@ -67,7 +70,7 @@ async function pick(names: string[]) {
 
 // The hook loads the sheet lazily (next/dynamic); warm the module so the first test is not timing a cold import.
 beforeAll(async () => { await import("@/components/plan/ConfirmationPreviewSheet"); });
-beforeEach(() => { inserted.length = 0; deleted.length = 0; toast.mockReset(); onAdded.mockReset(); peak = 0; vi.stubGlobal("fetch", fetchMock); });
+beforeEach(() => { attached.calls.length = 0; onOpen.mockReset(); inserted.length = 0; deleted.length = 0; toast.mockReset(); onAdded.mockReset(); peak = 0; vi.stubGlobal("fetch", fetchMock); });
 afterEach(() => vi.unstubAllGlobals());
 
 describe("uploading several bookings", () => {
@@ -120,5 +123,36 @@ describe("uploading several bookings", () => {
     expect(screen.queryByTestId("booking-row")).toBeNull();
     expect(screen.getByLabelText("Add a flight")).toBeTruthy();
     expect(toast).not.toHaveBeenCalled();
+  });
+
+  // 27 Nov 2026: "the card disappears after you upload the booking so you don't know if it
+  // worked until it's done". Bookings stays open, saying it is reading, and closes only here.
+  it("tells the host to close Bookings when the sheet opens, not while the file is read", async () => {
+    render(<Host />);
+    const input = screen.getByLabelText("Booking confirmation") as HTMLInputElement;
+    act(() => { fireEvent.change(input, { target: { files: [file("uffizi.png")] } }); });
+    expect(screen.getByTestId("label").textContent).toBe("Reading your booking…");
+    expect(onOpen).not.toHaveBeenCalled();
+    await screen.findByText("Here’s what we read");
+    expect(onOpen).toHaveBeenCalledTimes(1);
+  });
+
+  it("an unreadable file still opens the sheet, and Bookings closes then too", async () => {
+    await pick(["blurry.png"]);
+    await screen.findByTestId("failed-file");
+    expect(onOpen).toHaveBeenCalledTimes(1);
+  });
+
+  // 27 Nov 2026: "when I click on attachments in the travel card that was created, I don't see
+  // the attachment I uploaded".
+  it("keeps each file on the cards it made", async () => {
+    await pick(["ac890.pdf", "borgo.pdf"]);
+    await screen.findByText("2 bookings");
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Add 2 to my days" })); });
+    await waitFor(() => expect(onAdded).toHaveBeenCalled());
+    const cards = inserted.find((i) => i.table === "cards")!.rows as { id: string; details: { title?: string } }[];
+    expect(attached.calls.map((c) => [c.name, c.cardIds.length])).toEqual([["ac890.pdf", 1], ["borgo.pdf", 2]]);
+    expect(attached.calls.every((c) => c.tripId === "t" && c.file instanceof Blob)).toBe(true);
+    expect(attached.calls.flatMap((c) => c.cardIds).sort()).toEqual(cards.map((c) => c.id).sort());
   });
 });

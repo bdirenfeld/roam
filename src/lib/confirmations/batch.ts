@@ -30,7 +30,8 @@ export async function inBatches<T, R>(items: T[], limit: number, fn: (item: T, i
   return out;
 }
 
-export interface FileRef { name: string; type: string }
+/** blob: the picked file itself (27 Nov 2026), kept on the cards it makes; absent when re-read from storage. */
+export interface FileRef { name: string; type: string; blob?: Blob }
 export type FileRead =
   | { file: FileRef; items: ParsedConfirmation[] }
   | { file: FileRef; reason: string };

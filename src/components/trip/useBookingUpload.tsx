@@ -28,7 +28,8 @@ import { reloadOnStale } from "@/lib/chunkReload";
 const ConfirmationPreviewSheet = dynamic(reloadOnStale(() => import("@/components/plan/ConfirmationPreviewSheet")), { ssr: false });
 
 async function readOne(file: File): Promise<FileRead> {
-  const ref = { name: file.name, type: file.type };
+  // The picked file rides along, so the cards it makes can keep it (27 Nov 2026).
+  const ref = { name: file.name, type: file.type, blob: file };
   try {
     const fd = new FormData(); fd.append("file", file);
     const res = await fetch("/api/confirmations/parse", { method: "POST", body: fd });
@@ -41,10 +42,13 @@ async function readOne(file: File): Promise<FileRead> {
   }
 }
 
-export function useBookingUpload({ tripId, days, onAdded }: {
+export function useBookingUpload({ tripId, days, onAdded, onOpen }: {
   tripId: string;
   days: (Day | DayWithCards)[];
   onAdded: (cards: Card[], deletedIds: string[]) => void;
+  /** The check-and-add sheet is opening (27 Nov 2026): Bookings stays open while
+   *  the file is read, saying so, and the host closes it here, not before. */
+  onOpen?: () => void;
 }): { pick: () => void; addByHand: () => void; reading: boolean; readingLabel: string; element: ReactNode } {
   const { toast } = useToast();
   const [reading, setReading] = useState(0);
@@ -65,10 +69,12 @@ export function useBookingUpload({ tripId, days, onAdded }: {
         // Not an error toast any more: the sheet opens empty to add them by hand.
         setFailedFile(picked.length === 1 ? picked[0].name : `${picked.length} files`);
         setParsed({ ...all, items: [], fileOf: [], failures: picked.length === 1 ? [] : all.failures });
+        onOpen?.();
         return;
       }
       setFailedFile(null);
       setParsed(all);
+      onOpen?.();
     } finally {
       setReading(0);
     }

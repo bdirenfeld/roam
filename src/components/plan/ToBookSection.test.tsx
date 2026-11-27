@@ -524,3 +524,23 @@ describe("a row with many bookings (17 Nov 2026)", () => {
     expect(byHand).toHaveBeenCalled();
   });
 });
+
+describe("while a confirmation is read (27 Nov 2026)", () => {
+  it("the upload line says it is reading, and can't be tapped again", async () => {
+    journey = tuscanyOpen();
+    const onImport = vi.fn();
+    render(<ToBookSection tripId={journey.id} onImport={onImport} onAddByHand={vi.fn()} reading readingLabel="Reading 2 bookings…" />);
+    const status = await screen.findByTestId("bookings-reading");
+    expect(status.getAttribute("role")).toBe("status");
+    expect(status.textContent).toBe("Reading 2 bookings…");
+    expect(screen.queryByText("Upload a confirmation")).toBeNull();
+    expect(screen.queryByText("Add one yourself")).toBeNull();
+  });
+
+  it("not reading: the upload link as before", async () => {
+    journey = tuscanyOpen();
+    render(<ToBookSection tripId={journey.id} onImport={vi.fn()} />);
+    expect(await screen.findByText("Upload a confirmation")).toBeTruthy();
+    expect(screen.queryByTestId("bookings-reading")).toBeNull();
+  });
+});

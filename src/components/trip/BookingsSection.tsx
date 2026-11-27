@@ -35,7 +35,7 @@ export default function BookingsSection({ tripId, days, endDate }: { tripId: str
     setLines(bookingLines(days.map((d) => ({ id: d.id, date: d.date })), (data ?? []) as unknown as BookingCard[], endDate));
   }, [tripId, days, endDate]);
   useEffect(() => { void load(); }, [load]);
-  const upload = useBookingUpload({ tripId, days, onAdded: () => { void load(); } });
+  const upload = useBookingUpload({ tripId, days, onAdded: () => { void load(); }, onOpen: () => setShowDocs(false) });
 
   const empty = lines !== null && lines.length === 0;
   return (
@@ -70,7 +70,7 @@ export default function BookingsSection({ tripId, days, endDate }: { tripId: str
           </button>
         ) : lines !== null && <span aria-hidden="true" className="text-[14px] flex-shrink-0 ml-2" style={{ color: FAINT }}>›</span>}
       </div>
-      {showDocs && <DocumentsSheet tripId={tripId} onClose={() => setShowDocs(false)} onImport={() => { setShowDocs(false); upload.pick(); }} onAddByHand={() => { setShowDocs(false); upload.addByHand(); }} />}
+      {showDocs && <DocumentsSheet tripId={tripId} onClose={() => setShowDocs(false)} reading={upload.reading} readingLabel={upload.readingLabel} onImport={upload.pick} onAddByHand={() => { setShowDocs(false); upload.addByHand(); }} />}
     </div>
   );
 }
