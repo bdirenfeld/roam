@@ -435,3 +435,50 @@ describe("a cruise's ports of call (17 Nov 2026)", () => {
     expect((screen.getByLabelText("Port 1 day") as HTMLSelectElement).value).toBe("2027-07-21");
   });
 });
+
+// 27 Nov 2026: "the ability to combine multiple flight confirmations if they are uploaded
+// separately but you can tell the people travelling are on the same flight".
+describe("one flight, one card (27 Nov 2026)", () => {
+  const aa = (conf: string, seat: string, notes: string): ParsedConfirmation => ({
+    type: "flight_arrival", title: "American Airlines · YYZ → DFW", date: "2027-08-24", time: "14:07", end_time: "16:49",
+    confirmation_number: conf, address: null, phone: null, website: null, notes,
+    airline: "American Airlines", flight_number: "1993", origin_airport: "Toronto Pearson (YYZ)", arriving_at: "Dallas Fort Worth (DFW)", seat,
+  });
+
+  it("two confirmations for the same flight in one upload make ONE card with both people on it", async () => {
+    queued.mockReset(); queued.mockResolvedValue({ queued: false, error: null });
+    const done = vi.fn();
+    render(<ConfirmationPreviewSheet items={[aa("HHDSHC", "15E", "Seat 15E"), aa("HKZZSL", "15D", "Passenger: Isha Seth. Seat 15D.")]}
+      files={[{ name: "a.pdf", type: "application/pdf" }, { name: "b.pdf", type: "application/pdf" }]} fileOf={[0, 1]}
+      fileName="a.pdf" fileType="application/pdf" days={days} tripId="t1" onClose={vi.fn()} onCardsCreated={done} />);
+    fireEvent.click(screen.getByText("Add 2 to my days"));
+    await waitFor(() => expect(done).toHaveBeenCalled());
+    const rows = queued.mock.calls.find((c) => c[0] === "cards")![1] as { id: string; details: { confirmation: string; travellers: { name: string | null; seat?: string; confirmation?: string }[] } }[];
+    expect(rows).toHaveLength(1);
+    expect(rows[0].details.confirmation).toBe("HHDSHC");
+    expect(rows[0].details.travellers.map((t) => t.confirmation ?? null)).toEqual([null, "HKZZSL"]);
+    expect(rows[0].details.travellers[1]).toMatchObject({ name: "Isha Seth", seat: "15D" });
+    // Both files' records point at the one card.
+    const docs = queued.mock.calls.filter((c) => c[0] === "documents").map((c) => (c[1] as { card_ids: string[] }).card_ids);
+    expect(docs).toEqual([[rows[0].id], [rows[0].id]]);
+  });
+
+  it("a confirmation for a flight already on the day joins that card; nothing new is added", async () => {
+    queued.mockReset(); queued.mockResolvedValue({ queued: false, error: null });
+    updated.mockClear();
+    const onDay = [
+      { id: "d1", date: "2027-08-24", day_number: 1, cards: [{ id: "aa-old", place_id: null, status: "in_itinerary", start_time: "14:07:00", end_time: "16:49:00", confirmed: true, day_id: "d1",
+        details: { flight_number: "1993", origin_airport: "Toronto Pearson (YYZ)", arriving_at: "Dallas Fort Worth (DFW)", confirmation: "HHDSHC", seat: "15E" } }] },
+      { id: "d12", date: "2027-09-04", day_number: 12, cards: [] },
+    ] as unknown as DayWithCards[];
+    const done = vi.fn();
+    render(<ConfirmationPreviewSheet items={[aa("HKZZSL", "15D", "Passenger: Isha Seth.")]} fileName="isha.pdf" fileType="application/pdf" days={onDay} tripId="t1" onClose={vi.fn()} onCardsCreated={done} onDaysChanged={vi.fn()} />);
+    fireEvent.click(screen.getByText("Add to my days"));
+    await waitFor(() => expect(done).toHaveBeenCalled());
+    expect(queued.mock.calls.some((c) => c[0] === "cards")).toBe(false);
+    const call = updated.mock.calls.find((c) => (c[1] as { id: string }).id === "aa-old")!;
+    const details = (call[2] as { details: { travellers: { name: string | null; confirmation?: string }[] } }).details;
+    expect(details.travellers.map((t) => t.name)).toEqual([null, "Isha Seth"]);
+    expect(details.travellers[1].confirmation).toBe("HKZZSL");
+  });
+});

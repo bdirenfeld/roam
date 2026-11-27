@@ -5,12 +5,13 @@ import type { Card, CardStatus, DayWithCards, Place } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { queuedInsert, queuedUpdate } from "@/lib/offline/queuedWrite";
 import { expandAll } from "@/lib/confirmations/agenda";
-import { confirmationDetails, closingDetails, closingEvent, openingTitle, type ParsedConfirmation } from "@/lib/confirmations/toCards";
+import { confirmationDetails, closingDetails, closingEvent, isFlight, openingTitle, type ParsedConfirmation } from "@/lib/confirmations/toCards";
 import { resolvePlace } from "@/lib/confirmations/resolvePlace";
 import { bookingOutside, dayFor, shortDay } from "@/lib/confirmations/outsideDates";
 import { extendJourney } from "@/lib/confirmations/extendJourney";
 import { whenLine, type FileRef } from "@/lib/confirmations/batch";
 import { attachBookingFile } from "@/lib/booking/attachFile";
+import { joinFlight, sameFlight } from "@/lib/flights/travellers";
 import { existingFor, fillFrom, type DayCard } from "@/lib/confirmations/fillPlaceholder";
 import { blankBooking, flightTitle, flightAirport, type HandKind } from "@/lib/confirmations/byHand";
 import { portLabel, nextPort, type CruisePort } from "@/lib/confirmations/ports";
@@ -328,7 +329,32 @@ export default function ConfirmationPreviewSheet({
     const flipped: { id: string; patch: Record<string, unknown> }[] = [];
     const finalId = new Map<string, string>();
     const taken = new Set<string>();
+    // One flight, one card (27 Nov 2026): "combine multiple flight confirmations if they are
+    // uploaded separately but you can tell the people travelling are on the same flight".
+    // Another person's confirmation for a flight read earlier in this upload, or already on
+    // the day, joins that card (lib/flights/travellers) instead of making a second one.
+    const dateOf = (dayId: string | null) => days.find((d) => d.id === dayId)?.date ?? null;
+    const flightHosts: Card[] = [];
+    const joined = new Map<string, Record<string, unknown>>();
     const fresh = createdCards.filter((c, k) => {
+      if (isFlight(all[cardItem[k]].type)) {
+        const me = { details: c.details, date: dateOf(c.day_id) };
+        const host = flightHosts.find((h) => sameFlight({ details: h.details, date: dateOf(h.day_id) }, me));
+        if (host) {
+          host.details = joinFlight(host.details as Record<string, unknown>, c.details as Record<string, unknown>) as Card["details"];
+          finalId.set(c.id, host.id);
+          return false;
+        }
+        const onDay = (days.find((d) => d.id === c.day_id)?.cards ?? []).find((x) => !taken.has(x.id) && sameFlight({ details: x.details, date: dateOf(x.day_id) }, me)
+          && (x.details as { confirmation?: unknown } | null)?.confirmation !== (c.details as { confirmation?: unknown } | null)?.confirmation);
+        if (onDay) {
+          const next = joinFlight((joined.get(onDay.id) ?? onDay.details) as Record<string, unknown>, c.details as Record<string, unknown>);
+          joined.set(onDay.id, next);
+          finalId.set(c.id, onDay.id);
+          return false;
+        }
+        flightHosts.push(c);
+      }
       if (!c.place_id) return true;
       const dayCards = (days.find((d) => d.id === c.day_id)?.cards ?? []).filter((x) => !taken.has(x.id)) as unknown as DayCard[];
       const there = existingFor({ ...c, details: c.details as Record<string, unknown> }, all[cardItem[k]].type, dayCards);
@@ -338,6 +364,7 @@ export default function ConfirmationPreviewSheet({
       flipped.push({ id: there.id, patch: fillFrom(there, { ...c, details: c.details as Record<string, unknown> }).patch });
       return false;
     });
+    joined.forEach((details, id) => flipped.push({ id, patch: { details } }));
     for (const f of flipped) {
       const { error: flipError } = await queuedUpdate("cards", { id: f.id }, f.patch);
       if (flipError) console.error("[ConfirmationPreviewSheet] could not mark booked:", flipError);

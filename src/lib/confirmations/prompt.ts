@@ -30,6 +30,7 @@ Each object must have exactly these fields (no extra keys):
   "origin_airport": "string or null — flights only, where it departs, e.g. 'Toronto Pearson (YYZ)'",
   "arriving_at": "string or null — flights only, where it lands, e.g. 'Rome Fiumicino (FCO)'",
   "seat": "string or null — flights only",
+  "passengers": "array or null — flights only: every traveller on this booking, in the order listed, { \"name\": \"full name\", \"seat\": \"seat or null\" }",
   "check_out_date": "YYYY-MM-DD or null — hotels: the day you check out; a cruise: the day you leave the ship",
   "check_out_time": "HH:MM or null — hotels: the check-out time; a cruise: when you leave the ship",
   "drop_off_date": "YYYY-MM-DD or null — cars only, the day you return it",

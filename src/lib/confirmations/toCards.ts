@@ -8,6 +8,7 @@
 
 import type { AgendaDay } from "./agenda";
 import type { CruisePort } from "./ports";
+import { withPassengers } from "@/lib/flights/travellers";
 
 // "cruise" (17 Nov 2026) comes only from adding a booking by hand: the ship,
 // boarded at its port (title = ship, address = port, check_out_date = the day you leave).
@@ -30,6 +31,8 @@ export interface ParsedConfirmation {
   origin_airport?: string | null;
   arriving_at?: string | null;
   seat?: string | null;
+  /** Flights: everyone on the booking (27 Nov 2026, lib/flights/travellers): one card, a pass each. */
+  passengers?: { name: string; seat?: string | null }[] | null;
   /** Hotels: the day and time you leave. */
   check_out_date?: string | null;
   check_out_time?: string | null;
@@ -128,7 +131,7 @@ export function confirmationDetails(p: ParsedConfirmation, edits: { title: strin
   const paid = PRICED.has(p.type) ? paidAmount(p.total_paid) : null;
   const cur = currencyCode(p.paid_currency);
   if (paid != null && cur) { d.paid_total = paid; d.paid_currency = cur; }
-  return d;
+  return isFlight(p.type) ? withPassengers(d, p.passengers) : d;
 }
 
 /** A closing card (check-out, drop-off) copies its booking's details, without the price. */

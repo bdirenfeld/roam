@@ -38,7 +38,8 @@ import { type DirectionsApp, directionsUrl, otherApp, readDirectionsApp, writeDi
 
 // ── Type-specific detail components ───────────────────────────
 import FlightArrivalDetail from "./detail/FlightArrivalDetail";
-import { FlightPassTop, FlightPassBody, LayoverRow, ConnectingFlight, useTripFlights } from "./FlightPass";
+import { FlightPassTop, FlightPasses, BoardingPassViewer, LayoverRow, ConnectingFlight, useTripFlights } from "./FlightPass";
+import { isPersonField, travellersOf, viewFor, withBoardingPass, withPersonField } from "@/lib/flights/travellers";
 import { flightPass, isPassFlight } from "@/lib/flights/pass";
 import { flightsInAir, connectionsOf } from "@/lib/week/flightTime";
 import { CarVoucherTop, CarVoucherBody, useTripRentals } from "./CarVoucher";
@@ -498,6 +499,12 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   // time control everywhere (Brennan, Sep 2026). Start and end are written
   // together so a half-saved pair can never show.
   const [timeOpen, setTimeOpen] = useState(false);
+  // Whose pass is showing, on a flight card with several people (27 Nov 2026).
+  const [passIndex, setPassIndex] = useState(0);
+  const [passViewerAt, setPassViewerAt] = useState<number | null>(null);
+  const passFileRef = useRef<HTMLInputElement>(null);
+  const passFor = useRef(0);
+  useEffect(() => { setPassIndex(0); setPassViewerAt(null); }, [card.id]);
   const [stayOpen, setStayOpen] = useState(false);
   const saveTimes = useCallback(async (start: string | null, end: string | null) => {
     const prev = localCard;
@@ -592,7 +599,11 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       }
 
       const prev = localCard;
-      const newDetails = { ...localCard.details, [field]: value };
+      // Swiped to someone other than the first person: their seat, confirmation and notes are theirs.
+      const person = passIndex > 0 && isPersonField(field) && travellersOf(localCard.details as Record<string, unknown>).length > 1;
+      const newDetails = (person
+        ? withPersonField(localCard.details as Record<string, unknown>, passIndex, field as "seat", (value as string | null) ?? null)
+        : { ...localCard.details, [field]: value }) as Card["details"];
       const updated = { ...localCard, details: newDetails };
       setLocalCard(updated);
       onCardUpdate?.(updated);
@@ -609,7 +620,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         onCardUpdate?.(prev);
       }
     },
-    [localCard, onCardUpdate, saveTopLevel, toast]
+    [localCard, onCardUpdate, saveTopLevel, toast, passIndex]
   );
 
   // ── Travel leg (7 Oct 2026, mock d13) ─────────────────────────
@@ -631,6 +642,23 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     },
     [localCard, onCardUpdate, toast]
   );
+  // A boarding pass for one person (27 Nov 2026): kept in card-attachments under the
+  // journey's folder, named on that person in details.travellers.
+  const addBoardingPass = useCallback(async (i: number, file: File) => {
+    const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const path = `${localCard.trip_id}/${localCard.id}/pass-${Date.now()}-${safe}`;
+    const { error } = await supabase.storage.from("card-attachments").upload(path, file, { contentType: file.type || "application/octet-stream" });
+    if (error) { toast({ message: "Couldn't add that boarding pass. Try again." }); return; }
+    await saveDetailsPatch(withBoardingPass(localCard.details as Record<string, unknown>, i, { path, name: file.name, type: file.type || null }));
+    toast({ message: "Boarding pass added" });
+  }, [localCard, saveDetailsPatch, supabase, toast]);
+  const removeBoardingPass = useCallback(async (i: number) => {
+    const bp = travellersOf(localCard.details as Record<string, unknown>)[i]?.boarding_pass;
+    await saveDetailsPatch(withBoardingPass(localCard.details as Record<string, unknown>, i, null));
+    // The file goes too; a refusal only leaves an unused file behind.
+    if (bp) supabase.storage.from("card-attachments").remove([bp.path]).then(({ error }) => { if (error) console.error("[boarding pass] file not removed", error.message); });
+  }, [localCard, saveDetailsPatch, supabase]);
+
   // A transit place, or any place once the card says how you travel (10 Nov 2026).
   const legCapable = cardLegCapable(localCard);
   const legFrom = readFrom(localCard.details);
@@ -1333,9 +1361,13 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     // Read-only (guest): every detail component already renders static when
     // onSaveDetails is absent, so pass undefined. Strip the confirmation
     // reference and never reveal empty fields (there's nothing to fill in).
-    const dCard = readOnly
-      ? { ...localCard, details: withoutConfirmation(localCard.details) }
+    // Swiped to another person: their notes and confirmation below the pass (27 Nov 2026).
+    const shown = passOn && travellersOf(localCard.details as Record<string, unknown>).length > 1
+      ? { ...localCard, details: viewFor(localCard.details as Record<string, unknown>, passIndex) as Card["details"] }
       : localCard;
+    const dCard = readOnly
+      ? { ...shown, details: withoutConfirmation(shown.details) }
+      : shown;
     const onSave = readOnly ? undefined : saveDetails;
     const empty = readOnly ? false : showEmptyFields;
     switch (key) {
@@ -1800,8 +1832,19 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
           <div className="mt-2.5">
             {passView ? (
               <>
-                <FlightPassBody view={passView} details={localCard.details as Record<string, unknown>} readOnly={readOnly}
-                  onSave={(f, v) => void saveDetails(f, v)} onTime={() => setTimeOpen(true)} />
+                <FlightPasses view={passView} details={localCard.details as Record<string, unknown>} readOnly={readOnly}
+                  onSave={(f, v) => void saveDetails(f, v)} onTime={() => setTimeOpen(true)}
+                  index={passIndex} onIndex={setPassIndex}
+                  onAddPass={(i) => { passFor.current = i; passFileRef.current?.click(); }}
+                  onOpenPass={(i) => setPassViewerAt(i)} />
+                {!readOnly && (
+                  <input ref={passFileRef} type="file" accept="image/*,application/pdf" className="hidden" aria-label="Boarding pass"
+                    onChange={(e) => { const f = e.target.files?.[0]; e.currentTarget.value = ""; if (f) void addBoardingPass(passFor.current, f); }} />
+                )}
+                {passViewerAt != null && (
+                  <BoardingPassViewer details={localCard.details as Record<string, unknown>} start={passViewerAt} readOnly={readOnly}
+                    onRemove={(i) => { setPassViewerAt(null); void removeBoardingPass(i); }} onClose={() => setPassViewerAt(null)} />
+                )}
                 {passConn?.before && <LayoverRow layover={passConn.before} side="before" onOpen={onOpenCard} />}
                 {passConn?.after && <LayoverRow layover={passConn.after} side="after" onOpen={onOpenCard} />}
                 {homeLegPlan && passView && (
