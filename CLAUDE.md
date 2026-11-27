@@ -2699,3 +2699,7 @@ No grey helper text in this sheet, no "what's sent" link (his ruling); the priva
 ## Plan a journey button, and Journeys on a computer left alone (26 Nov 2026)
 - The masthead's Plan a journey is an outlined pill with the "+" in a white badge, same spot. He picked it from three shown on the live bar; amber was "terrible", a white pill passed over.
 - Six Journeys redesigns were mocked and rejected the same day (button above the cards, a right-hand column, a white Past/Archived panel, Your year as the big panel, his own map-plus-scrolling-table idea, one centred column): "these are all worse". With two upcoming journeys a wide layout looks empty. Do not re-propose a Journeys layout; ask him for a page he likes first.
+
+## Phone "Add to this day": nothing under Travel; no keyboard over the kind picker (26 Nov 2026)
+- On the phone day's sheet (`CreateCardSheet` with `onKindCard`, `kindHost`) the saved-place chips and the "saved on your map" lists are gone while the search box is empty: "It already says Activity, Food, Logistics, Travel. You don't need Food, Activity, Logistics underneath it again with all the saved stuff on the map. It's too much." Typing in the box brings saved matches back; that is the door. The Plan list's sheet (no kind rows) keeps its saved list.
+- A card that opens with "What kind of card?" already up (`askKind`) does not autofocus "What's the plan?" (`askedKindAtOpen`): on his phone the keyboard covered the picker. Opened any other way, the blank card still focuses the name.

@@ -459,6 +459,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     const d = card.details as { kind?: unknown; kind_sub?: unknown } | null;
     return askKind && !readOnly && !card.place && !card.place_id && typeof d?.kind === "string" && d.kind !== "note" && !d.kind_sub;
   });
+  const [askedKindAtOpen] = useState(showNotePicker);
   const [noteBusy, setNoteBusy] = useState(false);
   const [noteError, setNoteError] = useState<string | null>(null);
   // Deleted, but the sheet is still up so the undo is under the same thumb
@@ -1844,7 +1845,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               <TitleEditor
                 value={typeof (localCard.details as { title?: unknown } | null)?.title === "string" ? ((localCard.details as { title: string }).title).trim() : ""}
                 placeholder="What's the plan?"
-                autoEdit={startedBlank}
+                // Not while "What kind of card?" is up at the open (26 Nov 2026): on his phone the
+                // keyboard rose for this box and covered the picker he had just been shown.
+                autoEdit={startedBlank && !askedKindAtOpen}
                 onSave={(v) => void saveDetailsPatch({ ...(localCard.details as Record<string, unknown>), title: v })}
               />
             ) : place && !readOnly ? (

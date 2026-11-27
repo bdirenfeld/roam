@@ -137,14 +137,22 @@ describe("Add to this day asks what kind of thing (26 Nov 2026, as the week's ho
     expect(created).toEqual([]);
   });
 
-  it("the saved-place filter chips come after the kind rows and Travel, beside the list they filter", async () => {
-    // Two saved groups are needed for the chips to show at all; with one, there are none to misplace.
+  // 26 Nov 2026: "It already says Activity, Food, Logistics, Travel. You don't need to have Food,
+  // Activity, Logistics underneath it again with all the saved stuff on the map. It's too much."
+  it("under the four rows there are no chips and no saved list; typing brings the saved place back", async () => {
     await act(async () => { render(<CreateCardSheet {...props} onCardCreated={() => {}} onKindCard={() => {}} />); });
-    const chips = screen.queryByTestId("saved-filter");
-    if (chips) expect(screen.getByTestId("add-travel-row").compareDocumentPosition(chips) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    const src = (await import("node:fs")).readFileSync("src/components/plan/CreateCardSheet.tsx", "utf8");
-    expect(src.indexOf('data-testid="add-travel-row"')).toBeLessThan(src.indexOf('data-testid="saved-filter"'));
-    expect(src.indexOf('data-testid="add-kind-rows"')).toBeLessThan(src.indexOf('data-testid="saved-filter"'));
+    expect(screen.getByTestId("add-travel-row")).toBeTruthy();
+    expect(screen.queryByTestId("saved-filter")).toBeNull();
+    expect(screen.queryByText(/saved on your map/i)).toBeNull();
+    expect(screen.queryByText("All'Antico Vinaio")).toBeNull();
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "antico" } });
+    expect(await screen.findByText("All'Antico Vinaio")).toBeTruthy();
+    expect(screen.queryByTestId("saved-filter")).toBeNull();
+  });
+
+  it("the Plan list, which has no kind rows, keeps its saved list", async () => {
+    await act(async () => { render(<CreateCardSheet {...props} onCardCreated={() => {}} />); });
+    expect(await screen.findByText("All'Antico Vinaio")).toBeTruthy();
   });
 
   it("the rows step aside once he starts typing, as Travel does", async () => {

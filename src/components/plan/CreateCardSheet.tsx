@@ -266,6 +266,8 @@ export default function CreateCardSheet({
       .map((g) => ({ ...g, cards: savedMatches.filter((c) => c.place!.type === g.type) }))
       .filter((g) => g.cards.length > 0 && (!groupFilter || g.type === groupFilter));
   }, [savedMatches, groupFilter, GROUPS]);
+  // The phone day's sheet, which asks the kind first: it shows no saved-list chips, and no saved list until he types.
+  const kindHost = !!dayId && !!onKindCard;
   // Which groups have anything saved at all — a chip for an empty group is a dead tap.
   const availableGroups = useMemo(() => new Set(saved.map((c) => c.place!.type)), [saved]);
 
@@ -743,7 +745,7 @@ export default function CreateCardSheet({
               {/* The group chips — only when there is a saved list to narrow. They sit right
                   above that list (26 Nov 2026): above the kind rows, "Food / Activity" chips
                   over "Activity / Food" rows said the same two words twice (the phone viewer caught it). */}
-              {saved.length > 0 && !selected && availableGroups.size > 1 && (
+              {saved.length > 0 && !selected && availableGroups.size > 1 && !kindHost && (
                 <div data-testid="saved-filter" className="flex items-center gap-2 mb-3 px-0.5">
                   {GROUPS.filter((g) => availableGroups.has(g.type)).map((g) => {
                     const on = groupFilter === g.type;
@@ -767,8 +769,11 @@ export default function CreateCardSheet({
 
               </div>
 
-              {/* Saved first — one tap puts the place on the day and closes. */}
-              {savedGroups.map((g) => (
+              {/* Saved first — one tap puts the place on the day and closes. Under the four kind
+                  rows it is held back until he types (26 Nov 2026): "it already says Activity, Food,
+                  Logistics, Travel. You don't need to have Food, Activity, Logistics underneath it
+                  again with all the saved stuff on the map. It's too much." The search box is the door. */}
+              {(kindHost && !title.trim() ? [] : savedGroups).map((g) => (
                 <div className="mb-3" key={g.type}>
                   <p className="mb-1.5 px-1 text-[9.5px] font-semibold uppercase" style={{ letterSpacing: "0.18em", color: "rgba(26,26,46,0.62)" }}>
                     {g.label} · saved on your map

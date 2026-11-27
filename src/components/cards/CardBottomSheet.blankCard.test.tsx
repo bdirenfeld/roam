@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import { render, screen, fireEvent, act, cleanup } from "@testing-library/react";
 import type { Card, Day } from "@/types/database";
 
 /**
@@ -140,6 +140,15 @@ describe("fresh from the week's hour menu, the card opens asking what kind (27 N
     expect(lastDetails()).toMatchObject({ kind: "food", kind_type: "food", kind_sub: "coffee" });
     expect(screen.queryByText("What kind of card?")).toBeNull();
     expect(screen.getByPlaceholderText("What's the plan?")).toBeTruthy();
+  });
+
+  // 26 Nov 2026, his phone: the keyboard rose for "What's the plan?" and covered the picker.
+  it("while it asks, the name box does not take the keyboard; opened any other way it does", async () => {
+    await open(blank({ kind: "food" }), false, true);
+    expect(document.activeElement).not.toBe(screen.getByPlaceholderText("What's the plan?"));
+    cleanup();
+    await open(blank({ kind: "food" }));
+    expect(document.activeElement).toBe(screen.getByPlaceholderText("What's the plan?"));
   });
 
   it("the same blank card opened any other way does not ask: the line is the door", async () => {
