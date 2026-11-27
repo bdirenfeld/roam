@@ -686,7 +686,13 @@ export default function CreateCardSheet({
             <>
               {/* Search and chips stay visible while the list scrolls under them. */}
               <div className="sticky top-0 z-10 bg-white -mx-5 px-5 pt-0.5">
-              <div className="flex items-center gap-2.5 mb-3 px-3.5 py-2.5 rounded-full" style={{ background: "#F3F4F6" }}>
+              {/* No search box when the sheet asks the kind first (26 Nov 2026). On his phone the
+                  keyboard left one result showing, and the box jumped as results came and went. His
+                  call: "do you even need a search at this point? Why don't you just link it and use
+                  that functionality instead?" The card a kind row opens has both: "Where? Add a place"
+                  searches Google, and its pin opens the saved places. The Plan list keeps the box. */}
+              {!kindHost && (
+              <div data-testid="create-search" className="flex items-center gap-2.5 mb-3 px-3.5 py-2.5 rounded-full" style={{ background: "#F3F4F6" }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(26,26,46,0.45)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
                   <circle cx="11" cy="11" r="8" />
                   <line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -707,6 +713,7 @@ export default function CreateCardSheet({
                   </svg>
                 )}
               </div>
+              )}
 
               {/* What kind of thing? (26 Nov 2026): the same four the week's hour menu asks,
                   in the same words. He turned down a "No place yet" row: "the whole premise

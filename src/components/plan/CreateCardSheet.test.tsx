@@ -137,23 +137,31 @@ describe("Add to this day asks what kind of thing (26 Nov 2026, as the week's ho
     expect(created).toEqual([]);
   });
 
-  // 26 Nov 2026: "It already says Activity, Food, Logistics, Travel. You don't need to have Food,
-  // Activity, Logistics underneath it again with all the saved stuff on the map. It's too much."
-  it("under the four rows there are no chips and no saved list; typing brings the saved place back", async () => {
+  // 26 Nov 2026: first the chips and saved lists under the rows went ("It's too much"), then the
+  // box itself: on his phone the keyboard left one result showing and the box jumped. His call:
+  // "do you even need a search at this point? Why don't you just link it and use that functionality
+  // instead?" The card a row opens finds the place (Where? searches Google; its pin, saved places).
+  it("is the four rows and nothing else: no search box, no chips, no saved list", async () => {
     await act(async () => { render(<CreateCardSheet {...props} onCardCreated={() => {}} onKindCard={() => {}} />); });
+    expect(screen.getByTestId("add-kind-rows")).toBeTruthy();
     expect(screen.getByTestId("add-travel-row")).toBeTruthy();
+    expect(screen.queryByTestId("create-search")).toBeNull();
+    expect(screen.queryByRole("textbox")).toBeNull();
     expect(screen.queryByTestId("saved-filter")).toBeNull();
     expect(screen.queryByText(/saved on your map/i)).toBeNull();
     expect(screen.queryByText("All'Antico Vinaio")).toBeNull();
-    fireEvent.change(screen.getByRole("textbox"), { target: { value: "antico" } });
-    expect(await screen.findByText("All'Antico Vinaio")).toBeTruthy();
-    expect(screen.queryByTestId("saved-filter")).toBeNull();
   });
 
-  // 26 Nov 2026, his phone: "when you type stuff in the search bar, the height of it jumps up and
-  // down and makes it impossible." Sized to its results, the bottom-anchored sheet moved the box.
-  it("holds its height from the first tap on the search box, so the box stays put while he types", async () => {
-    await act(async () => { render(<CreateCardSheet {...props} onCardCreated={() => {}} onKindCard={() => {}} />); });
+  it("the Plan list, which has no kind rows, keeps its search box and saved list", async () => {
+    await act(async () => { render(<CreateCardSheet {...props} onCardCreated={() => {}} />); });
+    expect(screen.getByTestId("create-search")).toBeTruthy();
+    expect(await screen.findByText("All'Antico Vinaio")).toBeTruthy();
+  });
+
+  // Its box holds the sheet at full height from the first tap, so results coming and going
+  // don't move the box (26 Nov 2026: "the height of it jumps up and down").
+  it("on the Plan list, the sheet holds its height from the first tap on the search box", async () => {
+    await act(async () => { render(<CreateCardSheet {...props} onCardCreated={() => {}} />); });
     const sheet = screen.getByTestId("create-sheet");
     expect(sheet.className).not.toMatch(/(^|\s)h-\[80dvh\]/);
     fireEvent.focus(screen.getByRole("textbox"));
@@ -161,17 +169,6 @@ describe("Add to this day asks what kind of thing (26 Nov 2026, as the week's ho
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "a" } });
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "" } });
     expect(sheet.className).toMatch(/(^|\s)h-\[80dvh\]/);
-  });
-
-  it("the Plan list, which has no kind rows, keeps its saved list", async () => {
-    await act(async () => { render(<CreateCardSheet {...props} onCardCreated={() => {}} />); });
-    expect(await screen.findByText("All'Antico Vinaio")).toBeTruthy();
-  });
-
-  it("the rows step aside once he starts typing, as Travel does", async () => {
-    await act(async () => { render(<CreateCardSheet {...props} onCardCreated={() => {}} onKindCard={() => {}} />); });
-    fireEvent.change(screen.getByRole("textbox"), { target: { value: "Dinner" } });
-    expect(screen.queryByTestId("add-kind-rows")).toBeNull();
   });
 
   it("a host that cannot open the card (the Plan list) shows no rows", async () => {
