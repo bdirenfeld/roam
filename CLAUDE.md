@@ -2710,3 +2710,9 @@ No grey helper text in this sheet, no "what's sent" link (his ruling); the priva
 ## Bookings upload (27 Nov 2026)
 - Upload never closes Bookings before the picker: hosts pass `reading`/`readingLabel` to DocumentsSheet and `onOpen: () => setShowDocs(false)` to useBookingUpload, so Bookings says "Reading your booking…" and closes only when the check-and-add sheet opens. Keep it that way in any new host.
 - An uploaded confirmation's file is kept: FileRef carries `blob`, and ConfirmationPreviewSheet calls lib/booking/attachFile to store it once at `<trip>/bookings/<docId>-<name>` and add a card_attachments row per card it made. DocumentsSheet lists each file once (`listedOnce`).
+
+## Flight cards: everyone on one card (27 Nov 2026, approved mock)
+- One flight = one card. `details.travellers` lists everyone (lib/flights/travellers); the card's top-level seat/confirmation/notes ARE traveller 0, so existing readers are unchanged. On the phone the pass swipes per person (FlightPasses); only the passes move, the rest of the card stays.
+- Swiped to person i>0, saveDetails routes seat/confirmation/notes to that person (withPersonField) and the detail section shows viewFor(i).
+- Uploads join: a flight with the same number, day and origin (sameFlight) in the same upload or already on the day becomes another traveller (joinFlight, price added once, same currency only). The reader returns `passengers` [{name, seat}] for a family on one confirmation.
+- Boarding pass per person: stored in card-attachments at `<trip>/<card>/pass-…`, named on the traveller. The empty row is slim (h-10), his ask; the full-screen viewer swipes too.
