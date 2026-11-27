@@ -97,7 +97,7 @@ describe("Bookings: three rows, one mark each", () => {
 
     // ONE primary button, and the quiet upload link under it.
     expect(screen.getByRole("button", { name: "Book 2 on Kayak" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Upload a confirmation" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Upload a booking" })).toBeTruthy();
     // No Other files when there are none.
     expect(screen.queryByText(/Other files/)).toBeNull();
     // The count: three rows, the button, the link — and nothing else to tap.
@@ -231,7 +231,7 @@ describe("uploads inside their row", () => {
     journey = J_("Tuscany");
     const onImport = vi.fn();
     render(<ToBookSection tripId="tuscany-u" onImport={onImport} />);
-    await userEvent.click(await screen.findByRole("button", { name: "Upload a confirmation" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Upload a booking" }));
     expect(onImport).toHaveBeenCalledTimes(1);
   });
 });
@@ -316,7 +316,7 @@ describe("Book N on Kayak, and Stays opening Where to stay", () => {
     render(<ToBookSection tripId="tuscany-n" onImport={() => {}} />);
     await waitFor(() => expect(screen.getByTestId("to-book-car").dataset.state).toBe("skip"));
     expect(screen.queryByRole("button", { name: /on Kayak/ })).toBeNull();
-    expect(screen.getByRole("button", { name: "Upload a confirmation" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Upload a booking" })).toBeTruthy();
     expect(rowOf("flights").textContent).toBe("FlightsMarked booked›");
     // 7 Oct 2026, delight audit: the button's spot says the job is done.
     expect(screen.getByTestId("all-booked").textContent).toBe("✓ Everything’s booked.");
@@ -516,7 +516,7 @@ describe("a row with many bookings (17 Nov 2026)", () => {
     expect(push).toHaveBeenCalledWith(`/trips/tuscany-a/days/${dayIds[0]}`);
   });
 
-  it("Add one yourself sits beside Upload a confirmation", async () => {
+  it("Add one yourself is a quiet link under the rows", async () => {
     journey = J_("Tuscany");
     const byHand = vi.fn();
     render(<ToBookSection tripId="tuscany-a" onImport={() => {}} onAddByHand={byHand} />);
@@ -533,14 +533,29 @@ describe("while a confirmation is read (27 Nov 2026)", () => {
     const status = await screen.findByTestId("bookings-reading");
     expect(status.getAttribute("role")).toBe("status");
     expect(status.textContent).toBe("Reading 2 bookings…");
-    expect(screen.queryByText("Upload a confirmation")).toBeNull();
+    expect((screen.getByTestId("bookings-upload") as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByText("Upload a booking")).toBeNull();
     expect(screen.queryByText("Add one yourself")).toBeNull();
   });
 
   it("not reading: the upload link as before", async () => {
     journey = tuscanyOpen();
     render(<ToBookSection tripId={journey.id} onImport={vi.fn()} />);
-    expect(await screen.findByText("Upload a confirmation")).toBeTruthy();
+    expect(await screen.findByText("Upload a booking")).toBeTruthy();
     expect(screen.queryByTestId("bookings-reading")).toBeNull();
+  });
+
+  // 27 Nov 2026: "easier way to press a button to upload a booking ... vs. at the very bottom";
+  // of the mocks, "one button is better".
+  it("Upload a booking is one button at the top, above the three rows", async () => {
+    journey = tuscanyOpen();
+    const onImport = vi.fn();
+    render(<ToBookSection tripId={journey.id} onImport={onImport} />);
+    const btn = await screen.findByTestId("bookings-upload");
+    const firstRow = screen.getByTestId("to-book-flights");
+    expect(btn.compareDocumentPosition(firstRow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: /Upload/ })).toHaveLength(1);
+    fireEvent.click(btn);
+    expect(onImport).toHaveBeenCalledTimes(1);
   });
 });

@@ -31,7 +31,7 @@ export default function LessonPointer({ screen, lesson, step, onNext, onSkip, pr
       const booked = activeCards.find(c => c.confirmed || (c.details as Record<string, unknown> | null)?.confirmation);
       const planned = activeCards.find(c => c.day_id && ['activity', 'food'].includes(c.place?.type ?? ''));
       const cardElement = (id?: string) => id ? Array.from(document.querySelectorAll('[data-card-id]')).find(el => el.getAttribute('data-card-id') === id && visible(el)) : undefined;
-      const upload = button('Upload a confirmation') ?? button('Upload bookings', true) ?? button('Import a booking');
+      const upload = button('Upload a booking') ?? button('Upload a confirmation') ?? button('Upload bookings', true) ?? button('Import a booking');
       const add = button('Add to my days') ?? Array.from(document.querySelectorAll('button')).find(el => visible(el) && /^Add \d+ to my days$/.test(el.textContent?.trim() ?? ''));
       if (lesson === 'bookings') {
         if (step === 0) {

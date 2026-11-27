@@ -114,7 +114,7 @@ describe("finger-sized tap areas (6 Oct 2026, taps audit)", () => {
     // Half the cost row's 8px gap sideways, no more.
     expect(toBook).toMatch(/data-testid="cost-save-target" className="absolute -inset-y-1\.5 -inset-x-1"/);
     expect(toBook).toMatch(/data-testid="cost-later-target" className="absolute -inset-y-1\.5 -inset-x-1"/);
-    expect(toBook).toMatch(/data-testid="upload-target" className="absolute -inset-y-1\.5 inset-x-0"/);
+    expect(toBook).toMatch(/data-testid="add-by-hand-target" className="absolute -inset-y-1\.5 inset-x-0"/);
     const time = src("src/components/day/TimeSheet.tsx");
     expect(time).toMatch(/data-testid="time-close-target" className="absolute -inset-1"/);
     // − and + reach in over the label only, never out of the Length cell.

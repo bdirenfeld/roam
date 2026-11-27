@@ -17,8 +17,11 @@
 //     "Did you book it?" in place of its line — Booked (the menu's Booked,
 //     then "What did it cost?") or Not yet (7 Oct 2026, delight audit, mock
 //     approved; lib/booking/didYouBook). Where to stay is in-app: never asks.
-//   - "Upload a confirmation" is a quiet link under it; uploaded files sit in
-//     their row, and anything matching no row is "Other files (n)".
+//   - "Upload a booking" is one button at the top (27 Nov 2026, mock approved:
+//     "one button is better"; it was a quiet link under Book on Kayak, "at the very
+//     bottom"). Roam reads the file and puts it in its row, so one button serves
+//     all three. Uploaded files sit in their row; anything matching no row is
+//     "Other files (n)". "Add one yourself" stays a quiet link at the bottom.
 // The owner's choices live in trips.booking_checklist.
 // Owner only: anyone else gets DocumentsSheet's plain file list (onOwner tells
 // it which), and the shared link never shows Bookings at all.
@@ -293,6 +296,29 @@ export default function ToBookSection({ tripId, onLeave, files = [], onOpenFile,
   return (
     <div className="px-5" data-testid="to-book">
       {menu && <div className="fixed inset-0 z-10" onClick={() => setMenu(null)} aria-hidden="true" />}
+      {onImport && (
+        <button
+          type="button"
+          onClick={onImport}
+          disabled={reading}
+          data-walk="bookings-upload"
+          data-testid="bookings-upload"
+          className="w-full mt-1 mb-3.5 h-[46px] rounded-xl flex items-center justify-center gap-2 text-[14px] font-semibold active:opacity-70"
+          style={{ color: INK, boxShadow: "inset 0 0 0 1.5px rgba(26,26,46,0.30)" }}
+        >
+          {reading ? (
+            <>
+              <span aria-hidden="true" className="w-3.5 h-3.5 rounded-full border-2 animate-spin" style={{ borderColor: RULE, borderTopColor: INK }} />
+              <span role="status" data-testid="bookings-reading">{readingLabel ?? "Reading your booking…"}</span>
+            </>
+          ) : (
+            <>
+              <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={INK} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 16V4M6 10l6-6 6 6" /><path d="M4 20h16" /></svg>
+              Upload a booking
+            </>
+          )}
+        </button>
+      )}
       {rows.map((r) => {
         const mine = filesFor(r.key, files);
         const canOpen = openable(mine);
@@ -469,24 +495,13 @@ export default function ToBookSection({ tripId, onLeave, files = [], onOpenFile,
           ✓ Everything’s booked.
         </p>
       ) : null}
-      {onImport && reading ? (
-        <ReadingLine label={readingLabel} />
-      ) : onImport && (
+      {onImport && onAddByHand && !reading && (
         <div className="text-center pt-3">
-          <button type="button" onClick={onImport} data-walk="bookings-upload" className="relative text-[13px] underline underline-offset-[3px] py-1.5" style={{ color: CAPTION }}>
+          <button type="button" onClick={onAddByHand} className="relative text-[13px] underline underline-offset-[3px] py-1.5" style={{ color: CAPTION }}>
             {/* 6px up into the 12px under Book on Kayak (half of it), 6px down. */}
-            <span aria-hidden="true" data-testid="upload-target" className="absolute -inset-y-1.5 inset-x-0" />
-            Upload a confirmation
+            <span aria-hidden="true" data-testid="add-by-hand-target" className="absolute -inset-y-1.5 inset-x-0" />
+            Add one yourself
           </button>
-          {onAddByHand && (
-            <>
-              <span aria-hidden="true" className="mx-2 text-[13px]" style={{ color: CAPTION }}>·</span>
-              <button type="button" onClick={onAddByHand} className="relative text-[13px] underline underline-offset-[3px] py-1.5" style={{ color: CAPTION }}>
-                <span aria-hidden="true" className="absolute -inset-y-1.5 inset-x-0" />
-                Add one yourself
-              </button>
-            </>
-          )}
         </div>
       )}
       {others.length > 0 && (
