@@ -71,3 +71,25 @@ describe("the flight card's passes", () => {
     expect(pass.textContent).not.toMatch(/SeatTerminal/i);
   });
 });
+
+// 27 Nov 2026: "on the desktop, I can't click anywhere to swipe right to the next person's flight info".
+describe("switching passes without a swipe", () => {
+  it("the dots, the arrows and the next pass's edge each go to that person", () => {
+    const onIndex = vi.fn();
+    const d = joinFlight(brennan, isha);
+    render(<FlightPasses view={flightPass(card(d) as never, "2027-03-14")} details={d} readOnly={false} onSave={vi.fn()} onTime={vi.fn()}
+      index={0} onIndex={onIndex} onAddPass={vi.fn()} onOpenPass={vi.fn()} />);
+    fireEvent.click(screen.getAllByTestId("pass-dot")[1]);
+    expect(screen.getAllByTestId("pass-dot")[1].getAttribute("aria-label")).toBe("Show Isha's pass");
+    expect(onIndex).toHaveBeenLastCalledWith(1);
+    onIndex.mockClear();
+    fireEvent.click(screen.getByTestId("pass-next"));
+    expect(onIndex).toHaveBeenLastCalledWith(1);
+    expect((screen.getByTestId("pass-prev") as HTMLButtonElement).disabled).toBe(true);
+    onIndex.mockClear();
+    // A tap on Isha's pass while Brennan's is showing goes to hers, and edits nothing.
+    fireEvent.click(screen.getAllByTestId("flight-pass")[1].querySelector("button")!);
+    expect(onIndex).toHaveBeenLastCalledWith(1);
+    expect(screen.queryByRole("textbox")).toBeNull();
+  });
+});

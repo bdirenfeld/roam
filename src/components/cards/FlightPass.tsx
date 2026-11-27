@@ -248,9 +248,37 @@ export function FlightPasses({ view, details, readOnly, onSave, onTime, index, o
     const next = Math.max(0, Math.min(people.length - 1, i));
     if (next !== index) onIndex(next);
   };
+  // A mouse can't swipe (27 Nov 2026, his computer): the dots, the arrows and the
+  // edge of the next pass all go to that person.
+  const go = (i: number) => {
+    const el = trackRef.current;
+    const slide = el?.children[i] as HTMLElement | undefined;
+    if (!el || !slide) return;
+    const to = slide.offsetLeft - (el.firstElementChild as HTMLElement).offsetLeft;
+    if (typeof el.scrollTo === "function") el.scrollTo({ left: to, behavior: "smooth" }); else el.scrollLeft = to;
+    onIndex(i);
+  };
+  const who = (i: number) => firstName(people[i]?.name) ?? `Traveller ${i + 1}`;
+  const arrow = (dir: -1 | 1) => {
+    const to = index + dir;
+    return (
+      <button type="button" data-testid={dir > 0 ? "pass-next" : "pass-prev"} disabled={to < 0 || to >= people.length} onClick={() => go(to)}
+        aria-label={to >= 0 && to < people.length ? `Show ${who(to)}'s pass` : dir > 0 ? "No next pass" : "No previous pass"}
+        className="hidden md:grid w-7 h-7 rounded-full place-items-center text-[15px] disabled:opacity-30 hover:bg-gray-100"
+        style={{ color: INK }}>
+        {dir > 0 ? "›" : "‹"}
+      </button>
+    );
+  };
   return (
     <div className="mt-3">
       <div ref={trackRef} data-testid="pass-track" onScroll={onScroll}
+        onClickCapture={(e) => {
+          // A tap on the next pass's edge goes to it, rather than editing a field you can barely see.
+          const slide = (e.target as HTMLElement).closest('[data-testid="flight-pass"]');
+          const i = slide && trackRef.current ? Array.prototype.indexOf.call(trackRef.current.children, slide) : -1;
+          if (i >= 0 && i !== index) { e.preventDefault(); e.stopPropagation(); go(i); }
+        }}
         className="flex gap-2.5 overflow-x-auto -mx-5 px-5 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         style={{ scrollSnapType: "x mandatory", overscrollBehaviorX: "contain" }}>
         {people.map((p, i) => (
@@ -258,12 +286,17 @@ export function FlightPasses({ view, details, readOnly, onSave, onTime, index, o
             name={firstName(p.name) ?? `Traveller ${i + 1}`} footer={footer(i)} />
         ))}
       </div>
-      <div className="flex items-center justify-center gap-2.5 mt-2.5">
-        <div className="flex gap-[5px]" aria-hidden="true">
+      <div className="flex items-center justify-center gap-2.5 mt-1.5">
+        {arrow(-1)}
+        <div className="flex">
           {people.map((_, i) => (
-            <span key={i} className="h-1.5 rounded-full transition-all" style={{ width: i === index ? 16 : 6, background: i === index ? INK : "#D3D3DB" }} />
+            <button key={i} type="button" data-testid="pass-dot" onClick={() => go(i)} aria-label={`Show ${who(i)}'s pass`} aria-current={i === index}
+              className="py-2.5 px-[2.5px]">
+              <span className="block h-1.5 rounded-full transition-all" style={{ width: i === index ? 16 : 6, background: i === index ? INK : "#D3D3DB" }} />
+            </button>
           ))}
         </div>
+        {arrow(1)}
         <span data-testid="pass-count" className="sr-only">
           {firstName(people[index]?.name) ?? `Traveller ${index + 1}`} · {index + 1} of {people.length}
         </span>
