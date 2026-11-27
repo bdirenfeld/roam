@@ -10,6 +10,8 @@ import { searchCountries } from "@/lib/entry/countries";
 import { tripCountries } from "@/lib/entry/countries";
 import { startZoomFor } from "@/lib/places/regions";
 import { stayRuns, stayOn } from "@/lib/stays/stayRuns";
+import { stayGaps, dayGapFlags } from "@/lib/stays/flightGap";
+import { useTripFlights } from "@/components/cards/FlightPass";
 import { dayArea } from "@/lib/places/dayArea";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -736,6 +738,22 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards: st
     return same.find((c) => c.day_id === dayWithCards.id) ?? same.find((c) => c.id === run.cardId) ?? same[0] ?? null;
   }, [hotelCards, stays, dayWithCards.date, dayWithCards.id]);
 
+  // Flights against the hotel's hours (27 Nov 2026, lib/stays/flightGap): "You land 3 h before
+  // check-in" on the hotel the day you land, "Leave 2 h after check-out" on the flight the day you go.
+  const tripFlights = useTripFlights(trip.id, stays.length > 0, 0);
+  const gapFlags = useMemo(() => {
+    const out: Record<string, string> = {};
+    if (!tripFlights.length) return out;
+    for (const run of stays) {
+      if (run.checkIn !== dayWithCards.date && run.checkOut !== dayWithCards.date) continue;
+      const hotel = hotelCards.find((c) => c.id === run.cardId);
+      if (!hotel) continue;
+      const flags = dayGapFlags(stayGaps(days, tripFlights, { checkInDate: run.checkIn, checkInTime: hotel.start_time, checkOutDate: run.checkOut, checkOutTime: hotel.end_time }), hotel.id);
+      for (const [id, text] of Object.entries(flags)) if (dayWithCards.cards.some((c) => c.id === id)) out[id] = text;
+    }
+    return out;
+  }, [tripFlights, stays, hotelCards, days, dayWithCards.date, dayWithCards.cards]);
+
   // Is the hotel on THIS day's list, or carried forward from an earlier one?
   // localCards holds only this day, so finding it here means it has a row —
   // check-in day, or the day you check out.
@@ -1210,6 +1228,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards: st
               onGiveTimes={readOnly ? undefined : () => void arrangeDayCards(dayWithCards, "rest")}
               stays={accommodationCard?.place?.title ? [accommodationCard.place.title] : []}
               carryPorts={carryPorts}
+              rowFlags={gapFlags}
             />
           </div>
         </div>

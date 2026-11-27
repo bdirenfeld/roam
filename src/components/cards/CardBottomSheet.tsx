@@ -1,7 +1,7 @@
 "use client";
 
 import { looksLikePortCall } from "@/lib/cards/portHint";
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useRef, useCallback, useState, useMemo } from "react";
 import { useWalkthrough } from "@/components/onboarding/JourneyGuidanceContext";
 import { SUB_TYPE_LABEL } from "@/lib/subTypeLabel";
 import TimeSheet from "@/components/day/TimeSheet";
@@ -59,6 +59,7 @@ import WellnessDetail from "./detail/WellnessDetail";
 import LogisticsDetail from "./detail/LogisticsDetail";
 import ActivityDetail from "./detail/ActivityDetail";
 import HotelDetail from "./detail/HotelDetail";
+import { stayGaps } from "@/lib/stays/flightGap";
 import PortDetail from "./detail/PortDetail";
 import StayDatesSheet, { type StayDatesValue } from "./StayDatesSheet";
 import { isPortCard, nightsInPort, nightsPatch, addIsoDays } from "@/lib/cards/port";
@@ -678,7 +679,21 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   // (Tuscany's placeholders) keeps the place layout: the pass is on the takeoff.
   const flightish = !legCard && isPassFlight(localCard.details, localCard.place?.sub_type);
   const [flightsVersion, setFlightsVersion] = useState(0);
-  const tripFlights = useTripFlights(localCard.trip_id, flightish, flightsVersion);
+  // A hotel reads the journey's flights too (27 Nov 2026, lib/stays/flightGap): landing well before
+  // check-in, or flying well after check-out, gets one orange line on the card.
+  const hotelish = localCard.place?.sub_type === "hotel" && !!localCard.day_id;
+  const tripFlights = useTripFlights(localCard.trip_id, flightish || hotelish, flightsVersion);
+  const hotelGaps = useMemo(() => {
+    if (!hotelish || !days?.length || !tripFlights.length) return null;
+    const d = (localCard.details ?? {}) as { check_out?: unknown; check_out_date?: unknown };
+    const iso = (v: unknown) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);
+    const checkInDate = days.find((x) => x.id === localCard.day_id)?.date;
+    if (!checkInDate) return null;
+    return stayGaps(days, tripFlights, {
+      checkInDate, checkInTime: localCard.start_time,
+      checkOutDate: iso(d.check_out) ?? iso(d.check_out_date) ?? iso(stayCheckOut), checkOutTime: localCard.end_time,
+    });
+  }, [hotelish, days, tripFlights, localCard.details, localCard.day_id, localCard.start_time, localCard.end_time, stayCheckOut]);
   const flightCards = flightish ? [...tripFlights.filter((c) => c.id !== localCard.id), localCard] : [];
   const flightSpan = flightish && days ? flightsInAir(days, flightCards).find((s) => s.card.id === localCard.id || s.landing?.id === localCard.id) : undefined;
   const passOn = flightish && flightSpan?.landing?.id !== localCard.id;
@@ -1417,7 +1432,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         // Both rows open the hotel calendar for the docking and leaving days (18 Nov 2026); without the journey's days, the time sheet.
         return <PortDetail card={dCard} docksDate={days?.find((d) => d.id === dCard.day_id)?.date ?? null} onSaveDetails={onSave} showEmpty={empty} onEditTime={readOnly ? undefined : () => (days?.length ? setStayOpen(true) : setTimeOpen(true))} />;
       case "logistics/hotel":
-        return <HotelDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} stayCheckOut={stayCheckOut} checkInDay={days?.find((x) => x.id === dCard.day_id)?.date ?? null} onEditStay={readOnly || !days?.length ? undefined : () => setStayOpen(true)} />;
+        return <HotelDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} stayCheckOut={stayCheckOut} checkInDay={days?.find((x) => x.id === dCard.day_id)?.date ?? null} onEditStay={readOnly || !days?.length ? undefined : () => setStayOpen(true)} gaps={hotelGaps} />;
       case "activity/wellness":
         return <WellnessDetail card={dCard} onSaveDetails={onSave} showEmpty={empty} />;
       default:

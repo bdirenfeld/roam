@@ -32,6 +32,9 @@ interface Props {
   pinIndex?: number;
   /** Under an "In Florence" heading: the address drops its town (12 Nov 2026, lib/day/dayFlow). */
   dropTown?: boolean;
+  /** A flight against the hotel's hours (27 Nov 2026, lib/stays/flightGap): "You land 3 h before
+   *  check-in". Takes the grey line's place, as an hours clash does: two lines, no exceptions. */
+  stayFlag?: string | null;
 }
 
 /** Cards eligible to show a confirmation dot */
@@ -88,7 +91,7 @@ function noteLeadOf(det: Record<string, unknown> | null): string | null {
 // Row E (Brennan, 24 Sep 2026): the rail is the time and nothing else. The
 // pin number is not drawn on the row any more — the map pins keep it, and a
 // pin tap lifts its row. `pinIndex` stays in Props so callers need not change.
-export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTimeTap, dropTown: inTown = false, pinIndex }: Props) {
+export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTimeTap, dropTown: inTown = false, pinIndex, stayFlag = null }: Props) {
   const place     = card.place;
   const det       = card.details as Record<string, unknown> | null;
   const subLabel  = subTypeLabel(place?.sub_type);
@@ -213,7 +216,9 @@ export default function CardSurface({ card, dayDate, onTap, isHighlighted, onTim
           style={{ color: "rgba(26,26,46,0.62)" }}
         >
           {pinIndex != null && <span data-pin-number="1" className="shrink-0">{pinIndex} ·</span>}
-          {hoursSignal ? (
+          {stayFlag ? (
+            <span data-testid="stay-flag" className="min-w-0 truncate font-medium" style={{ color: "#B0541F" }}>{stayFlag}</span>
+          ) : hoursSignal ? (
             <span className={`min-w-0 truncate ${openingHoursTone(hoursSignal)}`}>{openingHoursCaption(hoursSignal)}</span>
           ) : detail ? (
             <span className="min-w-0 truncate">{detail}</span>

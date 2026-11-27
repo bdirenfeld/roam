@@ -43,6 +43,8 @@ interface Props {
   stays?: string[];
   /** Ports from the day before where the ship stayed the night: their "All aboard" is today. */
   carryPorts?: Card[];
+  /** One orange line by card id (lib/stays/flightGap): landing before check-in, leaving after check-out. */
+  rowFlags?: Record<string, string>;
 }
 
 const hhmm = (m: number) => `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}:00`;
@@ -209,6 +211,7 @@ export default function CardTimeline({
   onGiveTimes,
   stays = [],
   carryPorts,
+  rowFlags,
 }: Props) {
   const { cards } = dayWithCards;
 
@@ -228,6 +231,7 @@ export default function CardTimeline({
       isHighlighted={highlightedCardId === card.id}
       pinIndex={cardNumberById?.get(card.id)}
       onTimeTap={onTimeTap ? () => onTimeTap(card) : undefined}
+      stayFlag={rowFlags?.[card.id] ?? null}
     />
   );
 

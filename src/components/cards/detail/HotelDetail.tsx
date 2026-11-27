@@ -2,6 +2,7 @@
 
 import type { Card } from "@/types/database";
 import FieldRow, { SectionLabel } from "./FieldRow";
+import { clock, type ArriveGap, type LeaveGap } from "@/lib/stays/flightGap";
 
 interface Props {
   card: Card;
@@ -16,6 +17,9 @@ interface Props {
   /** Opens the hotel picker (StayDatesSheet): one calendar for both days and
    *  the two times. Either row opens it; a hotel has no time chip of its own. */
   onEditStay?: () => void;
+  /** The flights against this stay's hours (lib/stays/flightGap, 27 Nov 2026): landing well before
+   *  check-in, or flying well after check-out. One orange line under the row, and what to ask for. */
+  gaps?: { arrive: ArriveGap | null; leave: LeaveGap | null } | null;
 }
 
 function fmtTime(t: string | null): string | null {
@@ -27,22 +31,36 @@ function fmtTime(t: string | null): string | null {
 
 /** One stay row (16 Nov 2026, Brennan picked "B"): grey icon, a small grey
  *  label above the value, no lines. Tighter than a row per field. */
-export function StayRow({ icon, label, children }: { icon: string; label: string; children: React.ReactNode }) {
+export function StayRow({ icon, label, children, below }: { icon: string; label: string; children: React.ReactNode; below?: React.ReactNode }) {
   return (
     <div className="flex items-start gap-3">
       <span aria-hidden="true" className="material-symbols-outlined mt-0.5" style={{ fontSize: 18, color: "rgba(26,26,46,0.5)", fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20" }}>{icon}</span>
       <div className="flex-1 min-w-0">
         <p className="text-[11px] font-medium leading-tight" style={{ color: "rgba(26,26,46,0.5)" }}>{label}</p>
         <div className="flex text-[14px] font-medium mt-px" style={{ color: "#1A1A2E" }}>{children}</div>
+        {below}
       </div>
     </div>
+  );
+}
+
+/** The opening-hours clash's orange line (CardBottomSheet), with what to ask the hotel under it. */
+function GapLine({ testId, lead, rest, ask }: { testId: string; lead: string; rest: string; ask: string }) {
+  return (
+    <p data-testid={testId} className="mt-1.5 flex items-start gap-1.5 text-[13px] leading-snug" style={{ color: "#B0541F" }}>
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 256 256" className="flex-shrink-0 mt-[3px]" aria-hidden="true"><path d="M128,26A102,102,0,1,0,230,128,102.12,102.12,0,0,0,128,26Zm0,192a90,90,0,1,1,90-90A90.1,90.1,0,0,1,128,218Zm-6-82V80a6,6,0,0,1,12,0v56a6,6,0,0,1-12,0Zm16,36a10,10,0,1,1-10-10A10,10,0,0,1,138,172Z" /></svg>
+      <span>
+        <span className="font-medium">{lead}</span><span style={{ opacity: 0.8 }}> · {rest}</span>
+        <span className="block mt-0.5" style={{ color: "rgba(26,26,46,0.6)" }}>{ask}</span>
+      </span>
+    </p>
   );
 }
 
 const isIso = (v: unknown): v is string => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
 const fmtDay = (iso: string) => new Date(iso + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
 
-export default function HotelDetail({ card, onSaveDetails, showEmpty = false, stayCheckOut = null, checkInDay = null, onEditStay }: Props) {
+export default function HotelDetail({ card, onSaveDetails, showEmpty = false, stayCheckOut = null, checkInDay = null, onEditStay, gaps = null }: Props) {
   const d = card.details as { confirmation?: string; notes?: string; check_out?: unknown; check_out_date?: unknown };
   const save = (field: string) =>
     onSaveDetails ? (v: string) => onSaveDetails(field, v || null) : undefined;
@@ -73,7 +91,9 @@ export default function HotelDetail({ card, onSaveDetails, showEmpty = false, st
       {(showEmpty || hasStayData || canSetLeave) && (
         <div data-testid="hotel-stay" className="space-y-3.5">
           {(checkInText || onEditStay) && (
-            <StayRow icon="key" label="Check-in">
+            <StayRow icon="key" label="Check-in" below={gaps?.arrive && (
+              <GapLine testId="gap-arrive" lead={`You land ${clock(gaps.arrive.land)}`} rest={`${gaps.arrive.hours} h early`} ask="Ask for early check-in, or leave your bags." />
+            )}>
               {onEditStay ? (
                 <button type="button" onClick={onEditStay} aria-label="Change the stay's dates and times"
                   className="relative flex-1 min-w-0 flex items-center justify-between text-left">
@@ -86,7 +106,9 @@ export default function HotelDetail({ card, onSaveDetails, showEmpty = false, st
             </StayRow>
           )}
           {(canSetLeave || leaveDay) && (
-            <StayRow icon="luggage" label={checkOutLabel}>
+            <StayRow icon="luggage" label={checkOutLabel} below={gaps?.leave && (
+              <GapLine testId="gap-leave" lead={`Flight ${clock(gaps.leave.flight)}`} rest={`leave at ${clock(gaps.leave.leaveAt)}`} ask="Ask for late check-out, or leave your bags." />
+            )}>
               {onEditStay ? (
                 <button type="button" onClick={onEditStay} aria-label="Change the stay's dates and times"
                   className="relative flex-1 min-w-0 flex items-center justify-between text-left">

@@ -2718,3 +2718,8 @@ No grey helper text in this sheet, no "what's sent" link (his ruling); the priva
 - Boarding pass per person: stored in card-attachments at `<trip>/<card>/pass-…`, named on the traveller. The empty row is slim (h-10), his ask; the full-screen viewer swipes too.
 - The simpler flight card (27 Nov 2026, approved mock): the whole card scrolls (sheet overflow-y-auto when passOn; useSheetDrag reads dragScrollRef), the airport/home box is one line that opens (HomeLegRows `home-fold`), the name is the strip's Traveller column, Terminal sits under the departure time with an upright "Add", dots only, no Booked chip, and Add a connecting flight + Delete card live in the ⋯. Delete in the ⋯ is for FLIGHT cards only: on travel legs he asked for it back at the bottom.
 - flightNumberLabel: never split a number with no letters ("19 93" bug); a known airline adds its code ("AA 1993").
+
+## Flights against the hotel's hours (27 Nov 2026, simple version approved)
+- lib/stays/flightGap `stayGaps`: landing 3 h+ before check-in on the check-in day, or leaving for the airport (takeoff minus 3 h) 2 h+ after check-out. No check-out time = 11 AM; no check-in time = nothing said. Flight moments come from flightsInAir, so two-card, overnight and doubled flights count once.
+- Hotel card: an orange line under Check-in / Check-out with what to ask ("Ask for early check-in, or leave your bags."). Day list: the line REPLACES the grey address line ("You land 3 h early" on the hotel, "Late check-out?" on the flight home), two lines per row as always; the longer wording was cut off by the Booked badge at 375 px.
+- He rejected a tappable version with a sheet (Ask the hotel / Add a bag drop / Sorted): "too fancy… way more complexity". Do not re-propose it.
