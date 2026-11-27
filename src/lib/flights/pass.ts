@@ -39,6 +39,34 @@ export function isPassFlight(details: unknown, subType: string | null | undefine
   return (subType === "flight_arrival" || subType === "flight_departure") && !!str(d.origin_airport) && !!str(d.arriving_at);
 }
 
+/** The airlines his journeys fly, by the name a confirmation gives (27 Nov 2026). */
+const AIRLINE_CODES: [RegExp, string][] = [
+  [/^american\b/i, "AA"], [/^air canada\b/i, "AC"], [/^united\b/i, "UA"], [/^delta\b/i, "DL"], [/^westjet\b/i, "WS"],
+  [/^porter\b/i, "PD"], [/^air transat\b/i, "TS"], [/^flair\b/i, "F8"], [/^alaska\b/i, "AS"], [/^southwest\b/i, "WN"],
+  [/^jetblue\b/i, "B6"], [/^spirit\b/i, "NK"], [/^frontier\b/i, "F9"], [/^british airways\b/i, "BA"], [/^lufthansa\b/i, "LH"],
+  [/^air france\b/i, "AF"], [/^klm\b/i, "KL"], [/^ita\b/i, "AZ"], [/^alitalia\b/i, "AZ"], [/^aer lingus\b/i, "EI"],
+  [/^iberia\b/i, "IB"], [/^swiss\b/i, "LX"], [/^emirates\b/i, "EK"], [/^qatar\b/i, "QR"], [/^turkish\b/i, "TK"],
+  [/^aerom[eé]xico\b/i, "AM"], [/^icelandair\b/i, "FI"], [/^tap\b/i, "TP"], [/^virgin atlantic\b/i, "VS"], [/^copa\b/i, "CM"],
+];
+
+/**
+ * The flight number as a pass prints it: "AC890" → "AC 890"; a bare "1993" on
+ * American Airlines → "AA 1993". A number with no letters is never split: it
+ * read "19 93" (27 Nov 2026, his phone).
+ */
+export function flightNumberLabel(raw: unknown, airline: unknown): string | null {
+  const n = str(raw);
+  if (!n) return null;
+  const coded = n.match(/^([A-Z][A-Z0-9]|[0-9][A-Z])\s*(\d{1,4})$/i);
+  if (coded) return `${coded[1].toUpperCase()} ${coded[2]}`;
+  if (/^\d{1,4}$/.test(n)) {
+    const name = str(airline);
+    const code = name ? AIRLINE_CODES.find(([re]) => re.test(name))?.[1] : null;
+    return code ? `${code} ${n}` : n;
+  }
+  return n;
+}
+
 /**
  * What the pass shows. `landing` is the time a two-card flight lands (its
  * landing card's start), used when this card has no end of its own.
@@ -56,7 +84,7 @@ export function flightPass(card: { details: unknown; start_time: string | null; 
     if (len) { minutes = len.minutes; arriveDate = len.landsOn; }
     else arriveDate = toMin(arrives) <= toMin(departs) ? addDays(dayDate, 1) : dayDate;
   }
-  const number = str(d.flight_number)?.replace(/^([A-Z0-9]{2})\s*(\d+)$/i, (_, a: string, n: string) => `${a.toUpperCase()} ${n}`) ?? null;
+  const number = flightNumberLabel(d.flight_number, d.airline);
   return {
     airline: str(d.airline)?.replace(/\s*\((Canada)\)\s*Ltd\.?$/i, "").replace(/\s+Ltd\.?$/i, "") ?? null,
     number, from, to, departs, arrives,

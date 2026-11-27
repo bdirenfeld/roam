@@ -49,8 +49,10 @@ export function useTripFlights(tripId: string | null | undefined, enabled: boole
 }
 
 /** Tap to change, the way the card's fields work today. */
-export function PassText({ value, placeholder, onSave, className, style, label }: {
+export function PassText({ value, placeholder, onSave, className, style, label, plain }: {
   value: string | null; placeholder: string; onSave?: (v: string) => void; className?: string; style?: React.CSSProperties; label: string;
+  /** An upright, underlined placeholder (27 Nov 2026: an italic "Add" read as "Ada"). */
+  plain?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value ?? "");
@@ -70,7 +72,9 @@ export function PassText({ value, placeholder, onSave, className, style, label }
   }
   return (
     <button type="button" aria-label={value ? `Change ${label}` : `Add ${label}`} onClick={() => setEditing(true)} className={`text-left ${className ?? ""}`} style={style}>
-      {value || <span className="italic font-normal" style={{ color: "rgba(26,26,46,0.35)" }}>{placeholder}</span>}
+      {value || (plain
+        ? <span className="font-normal underline underline-offset-2" style={{ color: "rgba(26,26,46,0.5)" }}>{placeholder}</span>
+        : <span className="italic font-normal" style={{ color: "rgba(26,26,46,0.35)" }}>{placeholder}</span>)}
     </button>
   );
 }
@@ -125,18 +129,18 @@ export function FlightPassBody({ view, details, readOnly, onSave, onTime, name, 
             {passDate((which === "from" ? view.departDate : view.arriveDate)!)}{which === "to" && view.nextDay ? " · next day" : ""}
           </p>
         )}
+        {/* Terminal sits under the time it leaves (27 Nov 2026 mock): the strip is the person's. */}
+        {which === "from" && (str("terminal") || !readOnly) && (
+          <p className="text-[11px] mt-0.5" data-testid="pass-terminal" style={{ color: CAP }}>
+            Terminal{" "}<PassText label="terminal" value={str("terminal")} placeholder="Add" onSave={save("terminal")} plain className="text-[11px] font-semibold" style={{ color: INK }} />
+          </p>
+        )}
       </div>
     );
   };
   return (
     <div data-testid="flight-pass" className={`${slide ? "" : "mt-3 "}rounded-2xl px-3.5 pt-3.5 pb-3`}
       style={slide ? { background: "#F6F7F9", flex: "0 0 calc(100% - 22px)", scrollSnapAlign: "center", scrollSnapStop: "always" } : { background: "#F6F7F9" }}>
-      {name && (
-        <div className="flex items-center gap-2 mb-2.5" data-testid="pass-name">
-          <span aria-hidden="true" className="w-6 h-6 rounded-full grid place-items-center text-[11.5px] font-bold text-white" style={{ background: INK }}>{name[0]?.toUpperCase()}</span>
-          <span className="text-[15px] font-bold" style={{ color: INK }}>{name}</span>
-        </div>
-      )}
       <div className="flex items-start justify-between gap-2">
         <End which="from" />
         <div className="flex-1 pt-2.5 text-center text-[11px] min-w-0" style={{ color: CAP }}>
@@ -149,10 +153,16 @@ export function FlightPassBody({ view, details, readOnly, onSave, onTime, name, 
         <End which="to" right />
       </div>
       <div className="flex border-t border-dashed mt-3 pt-2.5" style={{ borderColor: "#d8d8e0" }}>
-        {([["seat", "Seat"], ["terminal", "Terminal"], ...(readOnly ? [] : [["confirmation", "Confirmation"]])] as [string, string][]).map(([k, label]) => (
+        {name && (
+          <div className="flex-1 min-w-0" data-testid="pass-name">
+            <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "#9a9aa8" }}>Traveller</p>
+            <span className="block text-[13.5px] font-bold truncate" style={{ color: INK }}>{name}</span>
+          </div>
+        )}
+        {([["seat", "Seat"], ...(readOnly ? [] : [["confirmation", "Confirmation"]])] as [string, string][]).map(([k, label]) => (
           <div key={k} className="flex-1 min-w-0">
             <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "#9a9aa8" }}>{label}</p>
-            <PassText label={label.toLowerCase()} value={str(k)} placeholder="Add" onSave={save(k)} className="block text-[13.5px] font-bold truncate max-w-full" style={{ color: INK }} />
+            <PassText label={label.toLowerCase()} value={str(k)} placeholder="Add" onSave={save(k)} plain className="block text-[13.5px] font-bold truncate max-w-full" style={{ color: INK }} />
           </div>
         ))}
       </div>
@@ -254,7 +264,7 @@ export function FlightPasses({ view, details, readOnly, onSave, onTime, index, o
             <span key={i} className="h-1.5 rounded-full transition-all" style={{ width: i === index ? 16 : 6, background: i === index ? INK : "#D3D3DB" }} />
           ))}
         </div>
-        <span data-testid="pass-count" className="text-[12px]" style={{ color: CAP }}>
+        <span data-testid="pass-count" className="sr-only">
           {firstName(people[index]?.name) ?? `Traveller ${index + 1}`} · {index + 1} of {people.length}
         </span>
       </div>
@@ -358,13 +368,19 @@ export function LayoverRow({ layover, side, onOpen }: { layover: Layover<Card>; 
 const addDays = (iso: string, n: number) => new Date(Date.parse(iso + "T00:00:00Z") + n * 86_400_000).toISOString().slice(0, 10);
 
 /** "+ Add a connecting flight": a short form, From and Day filled in from where and when this one lands. */
-export function ConnectingFlight({ card, view, days, onAdded }: { card: Card; view: FlightPassView; days: Day[]; onAdded: (c: Card) => void }) {
-  const [open, setOpen] = useState(false);
+export function ConnectingFlight({ card, view, days, onAdded, fromMenu, onDone }: {
+  card: Card; view: FlightPassView; days: Day[]; onAdded: (c: Card) => void;
+  /** Opened from the card's ⋯ (27 Nov 2026): the form shows at once, and closing it leaves nothing behind. */
+  fromMenu?: boolean; onDone?: () => void;
+}) {
+  const [open, setOpenRaw] = useState(!!fromMenu);
+  const setOpen = (v: boolean) => { setOpenRaw(v); if (!v) onDone?.(); };
   const landDay = days.find((d) => d.date === view.arriveDate) ?? days.find((d) => d.id === card.day_id) ?? null;
   const [f, setF] = useState({ number: "", from: view.to.raw, to: "", dayId: landDay?.id ?? "", departs: "", arrives: "" });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   if (!open) {
+    if (fromMenu) return null;
     return (
       <button type="button" data-testid="add-connecting" onClick={() => { setF((x) => ({ ...x, from: view.to.raw, dayId: landDay?.id ?? x.dayId })); setOpen(true); }}
         className="relative mt-3 min-h-[44px] text-[13.5px] font-semibold underline underline-offset-[3px]" style={{ color: INK }}>

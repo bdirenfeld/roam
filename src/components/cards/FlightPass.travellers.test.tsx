@@ -57,4 +57,17 @@ describe("the flight card's passes", () => {
     fireEvent.click(bp);
     expect(onOpenPass).toHaveBeenCalledWith(1);
   });
+
+  // 27 Nov 2026 mock: the name is the strip's first column; Terminal sits under the time, upright.
+  it('the name is the Traveller column; Terminal is under the departure, its Add not italic', () => {
+    show(joinFlight(brennan, isha), 0);
+    const pass = screen.getAllByTestId('flight-pass')[0];
+    // Brennan's confirmation names nobody: his pass says Traveller 1 until a name is known.
+    expect(pass.querySelector('[data-testid="pass-name"]')!.textContent).toBe('TravellerTraveller 1');
+    expect(screen.getAllByTestId('pass-name')[1].textContent).toBe('TravellerIsha');
+    const term = screen.getAllByTestId('pass-terminal')[0];
+    expect(term.textContent).toBe('Terminal Add');
+    expect(term.querySelector('.italic')).toBeNull();
+    expect(pass.textContent).not.toMatch(/SeatTerminal/i);
+  });
 });

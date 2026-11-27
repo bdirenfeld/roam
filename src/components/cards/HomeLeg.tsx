@@ -71,6 +71,7 @@ export function HomeLegRows({ plan, airportName, readOnly, onSave, clockCity = n
   /** "Toronto": coming home, the times are on home's clock, and the box says so (19 Nov 2026). */
   clockCity?: string | null;
 }) {
+  const [open, setOpen] = useState(false);
   const Row = ({ when, what, sub, big, action }: { when: string; what: string; sub?: string; big?: boolean; action?: React.ReactNode }) => (
     <div className="flex items-baseline gap-3 py-1">
       <span className={`flex-shrink-0 w-[68px] font-bold ${big ? "text-[15px]" : "text-[13px]"}`} style={{ color: "#1A1A2E" }}>{when}</span>
@@ -92,9 +93,20 @@ export function HomeLegRows({ plan, airportName, readOnly, onSave, clockCity = n
       ))}
     </span>
   );
+  // One line until tapped (27 Nov 2026, approved mock): the full box pushed the flight's
+  // own description off the first screen.
+  const line = plan.role === "leaving"
+    ? <><b>Leave home {t(plan.leave)}</b> · airport {t(plan.atAirport)}</>
+    : <><b>Home {plan.home ? `~${t(plan.home)}` : "–"}</b> · land {t(plan.land)}</>;
   return (
-    <div data-testid={`home-${plan.role}`} className="mt-2.5 rounded-xl px-3 py-2.5" style={{ background: "#F3F6F9" }}>
-      <p className="text-[11px] font-bold uppercase tracking-wide mb-1" style={{ color: BLUE }}>{plan.role === "leaving" ? "Getting to the airport" : clockCity ? `Getting home · ${clockCity} time` : "Getting home"}</p>
+    <div data-testid={`home-${plan.role}`} className="mt-2.5 rounded-xl" style={{ background: "#F3F6F9" }}>
+      <button type="button" data-testid="home-fold" onClick={() => setOpen((o) => !o)} aria-expanded={open}
+        className="w-full flex items-center gap-2 px-3 py-2.5 text-left">
+        <span className="text-[11px] font-bold uppercase tracking-wide flex-shrink-0" style={{ color: BLUE }}>{plan.role === "leaving" ? "Airport" : clockCity ? `Home · ${clockCity}` : "Home"}</span>
+        <span className="flex-1 min-w-0 truncate text-[13px]" style={{ color: "#1A1A2E" }}>{line}</span>
+        <span aria-hidden="true" className="text-[15px] transition-transform" style={{ color: BLUE, transform: open ? "rotate(90deg)" : "none" }}>›</span>
+      </button>
+      {open && <div className="px-3 pb-2.5">
       {plan.role === "leaving" ? (
         <>
           <Row big when={t(plan.leave)} what="Leave home" sub={plan.leave ? undefined : "Working out the drive…"} />
@@ -109,6 +121,7 @@ export function HomeLegRows({ plan, airportName, readOnly, onSave, clockCity = n
           <Row big when={plan.home ? `~${t(plan.home)}` : "–"} what="Home" sub={plan.home ? undefined : "Working out the drive…"} />
         </>
       )}
+      </div>}
     </div>
   );
 }

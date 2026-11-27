@@ -47,3 +47,16 @@ describe("dates spelled by hand (19 Nov 2026)", () => {
     expect(passDate("2027-09-05")).toBe("Sun 5 Sep");
   });
 });
+
+describe("the flight number on the pass (27 Nov 2026: it read \"19 93\")", () => {
+  it("never splits a number with no letters; adds the airline's code when known", async () => {
+    const { flightNumberLabel } = await import("./pass");
+    expect(flightNumberLabel("1993", "American Airlines")).toBe("AA 1993");
+    expect(flightNumberLabel("1993", "Some Small Air")).toBe("1993");
+    expect(flightNumberLabel("1993", null)).toBe("1993");
+    expect(flightNumberLabel("AC890", "Air Canada")).toBe("AC 890");
+    expect(flightNumberLabel("ac 890", null)).toBe("AC 890");
+    expect(flightNumberLabel("B6123", "JetBlue")).toBe("B6 123");
+    expect(flightNumberLabel("", "Air Canada")).toBeNull();
+  });
+});

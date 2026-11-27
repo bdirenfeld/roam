@@ -410,6 +410,8 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   const { toast } = useToast();
   const supabase = createClient();
   const scrollRef = useRef<HTMLDivElement>(null);
+  // The whole flight card scrolls as one (27 Nov 2026): the drag asks whichever element scrolls.
+  const dragScrollRef = useRef<HTMLElement | null>(null);
   // Axis lock for the photo hero: a touch starts "pending" and only commits to
   // a vertical sheet drag once the gesture has moved far enough to reveal its
   // intent. A horizontally-dominant swipe releases the sheet entirely so the
@@ -494,7 +496,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   // scrollRef is handed over because this sheet scrolls an inner body under a
   // pinned hero — asking the sheet for its own scrollTop would read 0 forever
   // and claim every downward swipe as a dismissal.
-  const drag = useSheetDrag(onClose, scrollRef);
+  const drag = useSheetDrag(onClose, dragScrollRef);
   // The time is set in the same quick sheet the agenda's chip opens — one
   // time control everywhere (Brennan, Sep 2026). Start and end are written
   // together so a half-saved pair can never show.
@@ -502,9 +504,11 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   // Whose pass is showing, on a flight card with several people (27 Nov 2026).
   const [passIndex, setPassIndex] = useState(0);
   const [passViewerAt, setPassViewerAt] = useState<number | null>(null);
+  // "Add a connecting flight" lives in the ⋯ on a flight card (27 Nov 2026 mock).
+  const [connectFromMenu, setConnectFromMenu] = useState(false);
   const passFileRef = useRef<HTMLInputElement>(null);
   const passFor = useRef(0);
-  useEffect(() => { setPassIndex(0); setPassViewerAt(null); }, [card.id]);
+  useEffect(() => { setPassIndex(0); setPassViewerAt(null); setConnectFromMenu(false); }, [card.id]);
   const [stayOpen, setStayOpen] = useState(false);
   const saveTimes = useCallback(async (start: string | null, end: string | null) => {
     const prev = localCard;
@@ -680,6 +684,8 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   const passOn = flightish && flightSpan?.landing?.id !== localCard.id;
   const passView = passOn ? flightPass(localCard, days?.find((d) => d.id === localCard.day_id)?.date ?? null, flightSpan?.landing?.start_time ?? null) : null;
   const passConn = passOn && days ? connectionsOf(days, flightCards, localCard.id) : null;
+  // A flight card scrolls as one; every other card scrolls its body under the pinned top.
+  useEffect(() => { dragScrollRef.current = passOn ? drag.sheetRef.current : scrollRef.current; });
   // The rental voucher (19 Nov 2026, approved mock): a rental car card reads like the voucher, pick-up → drop-off (CarVoucher).
   const carOn = !legCard && isRentalCar(localCard.place?.sub_type);
   const tripRentals = useTripRentals(localCard.trip_id, carOn);
@@ -1441,7 +1447,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         onTouchMove={drag.onTouchMove}
         onTouchEnd={drag.onTouchEnd}
         onTouchCancel={drag.onTouchCancel}
-        className="relative w-full max-w-mobile mx-auto bg-white rounded-t-2xl shadow-sheet h-[95dvh] max-h-[95dvh] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-300 ease-spring"
+        className={`relative w-full max-w-mobile mx-auto bg-white rounded-t-2xl shadow-sheet h-[95dvh] max-h-[95dvh] flex flex-col ${passOn ? "overflow-y-auto overscroll-contain" : "overflow-hidden"} animate-in slide-in-from-bottom duration-300 ease-spring`}
         style={{ willChange: "transform" }}
       >
         {/* Close. On the sheet rather than in the header row, so it sits over
@@ -1794,6 +1800,17 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                                 asked for it back on the card, at the bottom, where every other card has it. */}
                           </>
                         )}
+                        {/* A flight card keeps its rare actions here (27 Nov 2026, approved mock): the bottom
+                            of the card is the pass, the airport line and the description. */}
+                        {passOn && !readOnly && days && days.length > 0 && !passConn?.after && (
+                          <button
+                            role="menuitem"
+                            onClick={() => { setShowCardMenu(false); setConnectFromMenu(true); }}
+                            className="w-full text-left px-3.5 py-2.5 text-[13px] font-medium text-gray-700 hover:bg-gray-50 transition-colors border-t border-gray-100"
+                          >
+                            Add a connecting flight
+                          </button>
+                        )}
                         {/* A boarding-pass flight has no type pill (19 Nov 2026): Change type is here, on the phone too. */}
                         {(passOn || carOn) && !readOnly && (
                           <button
@@ -1818,6 +1835,16 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                             className={`w-full text-left px-3.5 py-2.5 text-[13px] font-medium text-gray-700 hover:bg-gray-50 transition-colors${canBook || desktop ? " border-t border-gray-100" : ""}`}
                           >
                             {navApp === "google" ? "Directions in Waze" : "Directions in Google Maps"}
+                          </button>
+                        )}
+                        {passOn && !readOnly && (
+                          <button
+                            role="menuitem"
+                            disabled={isDeleting}
+                            onClick={() => { setShowCardMenu(false); void handleDelete(); }}
+                            className="w-full text-left px-3.5 py-2.5 text-[13px] font-medium text-red-600 hover:bg-red-50 transition-colors border-t border-gray-100 disabled:opacity-50"
+                          >
+                            Delete card
                           </button>
                         )}
                       </div>
@@ -2080,7 +2107,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             )}
 
             {/* Booked, as the day row says it (16 Nov 2026). */}
-            {localCard.confirmed === true && <span className="ml-1.5"><BookedTag size="sheet" /></span>}
+            {localCard.confirmed === true && !passOn && <span className="ml-1.5"><BookedTag size="sheet" /></span>}
 
             {/* No duration beside the times (6 Oct 2026, designer audit): the
                 range already says it. */}
@@ -2149,8 +2176,8 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
         </div>{/* end drag/header touch zone */}
 
         {/* Scrollable detail content */}
-        <div className="relative flex-1 min-h-0">
-          <div ref={scrollRef} className="absolute inset-0 overflow-y-auto px-5 py-5">
+        <div className={passOn ? "relative flex-1" : "relative flex-1 min-h-0"}>
+          <div ref={scrollRef} className={passOn ? "px-5 pt-1 pb-8" : "absolute inset-0 overflow-y-auto px-5 py-5"}>
             <NoteDisplay.Provider value={weekdayText ? withoutHoursLine : identityNote}>
               {legCapable && place && (!readOnly || legFrom) && (
                 <TravelLegPanel
@@ -2258,9 +2285,9 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   </button>
                 )}
                 {/* A connection is added from the flight you're looking at (19 Nov 2026, approved frame 2). */}
-                {passView && !readOnly && !passConn?.after && days && days.length > 0 && (
+                {passView && !readOnly && !passConn?.after && days && days.length > 0 && connectFromMenu && (
                   <div className="-mt-3 mb-3">
-                    <ConnectingFlight card={localCard} view={passView} days={days} onAdded={(c) => {
+                    <ConnectingFlight fromMenu onDone={() => setConnectFromMenu(false)} card={localCard} view={passView} days={days} onAdded={(c) => {
                       onCardCopied?.(c);
                       setFlightsVersion((v) => v + 1);
                       toast({ message: "Connecting flight added" });
@@ -2410,7 +2437,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 have to arrive at it. Still instant — every host has a six-second
                 undo, and a confirm dialog would be a second, stricter model for
                 one act. */}
-            {!readOnly && justDeleted ? (
+            {!readOnly && passOn && !justDeleted ? null : !readOnly && justDeleted ? (
               <p className="mt-7 w-full py-3 text-center text-[13px] font-medium" style={{ color: "rgba(26,26,46,0.45)" }}>
                 {deletedToast(localCard)} — undo above{/* named, was "Card deleted" (6 Oct 2026, delight audit) */}
               </p>
@@ -2427,7 +2454,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
             ) : null}
           </div>
           {/* Gradient fade to hint at more content below */}
-          <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white to-transparent pointer-events-none" />
+          {!passOn && <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white to-transparent pointer-events-none" />}
         </div>
 
         {/* Bottom action area. Rendered only when it has something to say —

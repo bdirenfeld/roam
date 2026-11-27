@@ -113,14 +113,29 @@ describe("the boarding-pass flight card (19 Nov 2026)", () => {
     expect(row.textContent).toContain("After AC 876 from Toronto Pearson");
   });
 
-  it("a flight with nothing after it offers '+ Add a connecting flight', From and Day filled in from where and when it lands", async () => {
+  // 27 Nov 2026 (approved mock): the connecting flight and Delete live in the card's ⋯.
+  it("a flight with nothing after it offers Add a connecting flight from the card's ⋯, From and Day filled in from where and when it lands", async () => {
     rows.data = [ac876];
     await act(async () => { render(<CardBottomSheet card={ac876} onClose={() => {}} days={tusDays} />); });
-    fireEvent.click(screen.getByTestId("add-connecting"));
+    expect(screen.queryByTestId("add-connecting")).toBeNull();
+    expect(screen.queryByText("Delete card")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "More options" }));
+    expect(screen.getByRole("menuitem", { name: "Delete card" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Add a connecting flight" }));
     const form = screen.getByTestId("connecting-form");
     expect(form.textContent).toContain("After AC 876 lands in Frankfurt · Wed 25 Aug, 8:35 AM");
     expect((screen.getByLabelText("From") as HTMLInputElement).value).toBe("Frankfurt (FRA)");
     expect((screen.getByLabelText("Day") as HTMLSelectElement).value).toBe("t25");
+  });
+
+  it("a booked flight shows no Booked chip, and the whole card scrolls as one (27 Nov 2026)", async () => {
+    rows.data = [ac876];
+    const booked = { ...ac876, confirmed: true } as typeof ac876;
+    await act(async () => { render(<CardBottomSheet card={booked} onClose={() => {}} days={tusDays} />); });
+    expect(screen.queryByText("Booked", { selector: "span" })).toBeNull();
+    const sheet = screen.getByTestId("flight-pass").closest(".rounded-t-2xl")!;
+    expect(sheet.className).toMatch(/overflow-y-auto/);
+    expect(sheet.className).not.toMatch(/overflow-hidden/);
   });
 
   it("'Land in Sydney' (no airports named) keeps the place card", async () => {
@@ -140,6 +155,10 @@ describe("getting to the airport and home (19 Nov 2026)", () => {
     rows.data = [out];
     await act(async () => { render(<CardBottomSheet card={out} onClose={() => {}} days={tusDays} />); });
     const box = await waitFor(() => screen.getByTestId("home-leaving"));
+    // One line until tapped (27 Nov 2026, approved mock).
+    expect(box.textContent).toContain("Leave home 3:30 PM · airport 4:00 PM");
+    expect(box.textContent).not.toContain("30 min");
+    fireEvent.click(screen.getByTestId("home-fold"));
     for (const t of ["Leave home", "3:30 PM", "30 min", "At the airport", "4:00 PM", "3 h before the flight"]) expect(box.textContent).toContain(t);
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "2 h" })); });
     expect(writes.calls.some((w) => (w.patch.details as Record<string, unknown> | undefined)?.airport_early_min === 120)).toBe(true);
@@ -150,6 +169,8 @@ describe("getting to the airport and home (19 Nov 2026)", () => {
     rows.data = [back];
     const { unmount } = await act(async () => render(<CardBottomSheet card={back} onClose={() => {}} days={tusDays} />));
     const box = await waitFor(() => screen.getByTestId("home-returning"));
+    expect(box.textContent).toContain("Home ~5:35 PM · land 4:00 PM");
+    fireEvent.click(screen.getByTestId("home-fold"));
     for (const t of ["Bags and customs", "1 h", "35 min", "~5:35 PM"]) expect(box.textContent).toContain(t);
     unmount();
     await act(async () => { render(<CardBottomSheet card={back} onClose={() => {}} days={tusDays} readOnly />); });
