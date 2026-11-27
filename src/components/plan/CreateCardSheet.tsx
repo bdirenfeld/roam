@@ -266,6 +266,10 @@ export default function CreateCardSheet({
       .map((g) => ({ ...g, cards: savedMatches.filter((c) => c.place!.type === g.type) }))
       .filter((g) => g.cards.length > 0 && (!groupFilter || g.type === groupFilter));
   }, [savedMatches, groupFilter, GROUPS]);
+  // Held at full height from the first tap on the search box until the sheet closes (26 Nov 2026):
+  // sized to its results, the bottom-anchored sheet grew and shrank with every letter and the box
+  // rode up and down under his thumb ("the height of it jumps up and down and makes it impossible").
+  const [searchHeld, setSearchHeld] = useState(false);
   // The phone day's sheet, which asks the kind first: it shows no saved-list chips, and no saved list until he types.
   const kindHost = !!dayId && !!onKindCard;
   // Which groups have anything saved at all — a chip for an empty group is a dead tap.
@@ -639,7 +643,8 @@ export default function CreateCardSheet({
         onTouchMove={drag.onTouchMove}
         onTouchEnd={drag.onTouchEnd}
         onTouchCancel={drag.onTouchCancel}
-        className="relative w-full max-w-mobile mx-auto bg-white rounded-t-2xl shadow-sheet max-h-[80dvh] flex flex-col animate-in slide-in-from-bottom duration-300"
+        className={`relative w-full max-w-mobile mx-auto bg-white rounded-t-2xl shadow-sheet max-h-[80dvh] flex flex-col animate-in slide-in-from-bottom duration-300${searchHeld ? " h-[80dvh]" : ""}`}
+        data-testid="create-sheet"
         style={{ willChange: "transform" }}
       >
         {/* Drag handle */}
@@ -688,6 +693,7 @@ export default function CreateCardSheet({
                 </svg>
                 <input
                   ref={inputRef}
+                  onFocus={() => setSearchHeld(true)}
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter" && canCreate && predictions.length === 0) handleCreate(); }}

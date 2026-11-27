@@ -150,6 +150,19 @@ describe("Add to this day asks what kind of thing (26 Nov 2026, as the week's ho
     expect(screen.queryByTestId("saved-filter")).toBeNull();
   });
 
+  // 26 Nov 2026, his phone: "when you type stuff in the search bar, the height of it jumps up and
+  // down and makes it impossible." Sized to its results, the bottom-anchored sheet moved the box.
+  it("holds its height from the first tap on the search box, so the box stays put while he types", async () => {
+    await act(async () => { render(<CreateCardSheet {...props} onCardCreated={() => {}} onKindCard={() => {}} />); });
+    const sheet = screen.getByTestId("create-sheet");
+    expect(sheet.className).not.toMatch(/(^|\s)h-\[80dvh\]/);
+    fireEvent.focus(screen.getByRole("textbox"));
+    expect(sheet.className).toMatch(/(^|\s)h-\[80dvh\]/);
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "a" } });
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "" } });
+    expect(sheet.className).toMatch(/(^|\s)h-\[80dvh\]/);
+  });
+
   it("the Plan list, which has no kind rows, keeps its saved list", async () => {
     await act(async () => { render(<CreateCardSheet {...props} onCardCreated={() => {}} />); });
     expect(await screen.findByText("All'Antico Vinaio")).toBeTruthy();

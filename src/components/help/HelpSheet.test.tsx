@@ -192,6 +192,13 @@ describe("Help", () => {
     expect(await box()).toBeTruthy();
   });
 
+  // 26 Nov 2026: "How Roam works should not be on here. It's outdated, you need to remove that."
+  it("How Roam works is not in Help", async () => {
+    const src = (await import("node:fs")).readFileSync("src/components/help/HelpSheet.tsx", "utf8");
+    expect(src).not.toMatch(/>How Roam works</);
+    expect(src).not.toContain("GuideLink");
+  });
+
   it("is masked from the recording", async () => {
     render(<HelpSheet onClose={() => {}} />);
     await box();

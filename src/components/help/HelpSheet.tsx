@@ -23,7 +23,6 @@ import { setHelpUnread } from "@/lib/help/unread";
 import { shrinkPicture } from "@/lib/help/picture";
 import { initMessenger, openMessenger, useMessengerStatus } from "@/lib/help/messenger";
 import HelpDot from "./HelpDot";
-import { GuideLink } from "@/components/overlays/AppOverlays";
 
 const INK = "#1A1A2E";
 const RULE = "rgba(26,26,46,0.10)";
@@ -234,10 +233,7 @@ export default function HelpSheet({ onClose, guest = false }: { onClose: () => v
           {hasVideos && (
             <button type="button" onClick={() => setVideos(true)} className={row} style={{ borderTop: `1px solid ${RULE}` }}>How-to videos<span aria-hidden>›</span></button>
           )}
-          {/* The written guide (26 Nov 2026): it left the phone's Profile, where it was a second help door, and lives here. */}
-          {!guest && (
-            <GuideLink className={row} style={{ borderTop: `1px solid ${RULE}` }} onBeforeOpen={onClose}>How Roam works<span aria-hidden>›</span></GuideLink>
-          )}
+          {/* No "How Roam works" here (26 Nov 2026): "It's outdated, you need to remove that." Walkthroughs and videos are the guide. */}
         </div>
       </div>
     </div>,
