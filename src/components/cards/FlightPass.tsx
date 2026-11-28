@@ -90,6 +90,10 @@ export function FlightPassTop({ view, readOnly, onSave }: { view: FlightPassView
   );
 }
 
+/** The space between passes: as wide as the sheet's side padding, so the next pass sits just
+ *  off screen (28 Nov 2026, Brennan: the peek "looks weird… you can still tell you can swipe"). */
+const PASS_GAP = 20;
+
 export function FlightPassBody({ view, details, readOnly, onSave, onTime, name, footer, slide }: {
   view: FlightPassView; details: Record<string, unknown>; readOnly: boolean;
   onSave: (field: string, value: string | null) => void; onTime: () => void;
@@ -140,7 +144,7 @@ export function FlightPassBody({ view, details, readOnly, onSave, onTime, name, 
   };
   return (
     <div data-testid="flight-pass" className={`${slide ? "" : "mt-3 "}rounded-2xl px-3.5 pt-3.5 pb-3`}
-      style={slide ? { background: "#F6F7F9", flex: "0 0 calc(100% - 22px)", scrollSnapAlign: "center", scrollSnapStop: "always" } : { background: "#F6F7F9" }}>
+      style={slide ? { background: "#F6F7F9", flex: "0 0 100%", scrollSnapAlign: "center", scrollSnapStop: "always" } : { background: "#F6F7F9" }}>
       <div className="flex items-start justify-between gap-2">
         <End which="from" />
         <div className="flex-1 pt-2.5 text-center text-[11px] min-w-0" style={{ color: CAP }}>
@@ -244,12 +248,11 @@ export function FlightPasses({ view, details, readOnly, onSave, onTime, index, o
     const el = trackRef.current;
     const first = el?.firstElementChild as HTMLElement | null;
     if (!el || !first) return;
-    const i = Math.round(el.scrollLeft / (first.getBoundingClientRect().width + 10));
+    const i = Math.round(el.scrollLeft / (first.getBoundingClientRect().width + PASS_GAP));
     const next = Math.max(0, Math.min(people.length - 1, i));
     if (next !== index) onIndex(next);
   };
-  // A mouse can't swipe (27 Nov 2026, his computer): the dots, the arrows and the
-  // edge of the next pass all go to that person.
+  // A mouse can't swipe (27 Nov 2026, his computer): the dots and the arrows go to that person.
   const go = (i: number) => {
     const el = trackRef.current;
     const slide = el?.children[i] as HTMLElement | undefined;
@@ -273,14 +276,8 @@ export function FlightPasses({ view, details, readOnly, onSave, onTime, index, o
   return (
     <div className="mt-3">
       <div ref={trackRef} data-testid="pass-track" onScroll={onScroll}
-        onClickCapture={(e) => {
-          // A tap on the next pass's edge goes to it, rather than editing a field you can barely see.
-          const slide = (e.target as HTMLElement).closest('[data-testid="flight-pass"]');
-          const i = slide && trackRef.current ? Array.prototype.indexOf.call(trackRef.current.children, slide) : -1;
-          if (i >= 0 && i !== index) { e.preventDefault(); e.stopPropagation(); go(i); }
-        }}
-        className="flex gap-2.5 overflow-x-auto -mx-5 px-5 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        style={{ scrollSnapType: "x mandatory", overscrollBehaviorX: "contain" }}>
+        className="flex overflow-x-auto -mx-5 px-5 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        style={{ gap: PASS_GAP, scrollSnapType: "x mandatory", overscrollBehaviorX: "contain" }}>
         {people.map((p, i) => (
           <FlightPassBody key={i} slide view={view} details={viewFor(details, i)} readOnly={readOnly} onSave={onSave} onTime={onTime}
             name={firstName(p.name) ?? `Traveller ${i + 1}`} footer={footer(i)} />
