@@ -1,6 +1,7 @@
 import { useState } from "react";
 import AddPlaceRow from "@/components/ui/AddPlaceRow";
 import CardSurface from "@/components/cards/CardSurface";
+import DayGrid from "./DayGrid";
 import type { DayWithCards, Card } from "@/types/database";
 import { dayFlow } from "@/lib/day/dayFlow";
 import { isTravelLeg, legDestTitle, iconSubType, legModeWord } from "@/lib/travel/leg";
@@ -43,6 +44,8 @@ interface Props {
   stays?: string[];
   /** Ports from the day before where the ship stayed the night: their "All aboard" is today. */
   carryPorts?: Card[];
+  /** The phone's Day view (28 Nov 2026, lib/day/dayGrid): the timed cards as an Outlook-style day. */
+  asDay?: boolean;
   /** One orange line by card id (lib/stays/flightGap): landing before check-in, leaving after check-out. */
   rowFlags?: Record<string, string>;
 }
@@ -211,6 +214,7 @@ export default function CardTimeline({
   onGiveTimes,
   stays = [],
   carryPorts,
+  asDay = false,
   rowFlags,
 }: Props) {
   const { cards } = dayWithCards;
@@ -284,7 +288,8 @@ export default function CardTimeline({
         </div>
       ) : (
         <div>
-          {dayFlow(timedCards, isTravelLeg, legDestTitle, stays, { is: isPortCard, name: portName, overnight: isOvernight, nights: nightsInPort, carry: carryPorts }).map((item) => {
+          {asDay && timedCards.length > 0 && <DayGrid cards={timedCards} cardNumberById={cardNumberById} onCardTap={onCardTap} />}
+          {!asDay && dayFlow(timedCards, isTravelLeg, legDestTitle, stays, { is: isPortCard, name: portName, overnight: isOvernight, nights: nightsInPort, carry: carryPorts }).map((item) => {
             if (item.kind === "port") {
               return <PortLine key={`${item.card.id}-${item.phase}`} card={item.card} phase={item.phase} name={item.name} onOpen={onCardTap} />;
             }

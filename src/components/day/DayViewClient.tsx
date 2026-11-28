@@ -188,6 +188,27 @@ function WeatherExpansion({
   );
 }
 
+// ── List / Day switch (28 Nov 2026) ───────────────────────────────────────
+const DAY_VIEW_KEY = "roam.dayView";
+// The header's glyph weight (18-20 px, 1.5 stroke), drawn to match the approved mock.
+function ListViewIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
+      <path d="M8.5 6.5h12M8.5 12h12M8.5 17.5h12" />
+      <circle cx="4.5" cy="6.5" r="1" fill="currentColor" /><circle cx="4.5" cy="12" r="1" fill="currentColor" /><circle cx="4.5" cy="17.5" r="1" fill="currentColor" />
+    </svg>
+  );
+}
+function DayViewIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3.5" y="4" width="17" height="16.5" rx="2.5" /><path d="M3.5 9h17" />
+      <rect x="7" y="11.5" width="10" height="3" rx="1" fill="currentColor" stroke="none" opacity=".55" />
+      <rect x="7" y="16" width="6" height="2.2" rx="1" fill="currentColor" stroke="none" opacity=".55" />
+    </svg>
+  );
+}
+
 // ── Weather subtitle row ──────────────────────────────────────────────────
 function WeatherSubtitle({
   weather,
@@ -457,10 +478,24 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards: st
   }, []);
   // Guests get Bookings too — the villa confirmation and the flight are
   // theirs to read; only the upload is the owner's.
+  const search = useGlobalSearch();
+  // Search moved into the menu (28 Nov 2026): the header's spot went to the List / Day switch.
+  // "I don't think anyone is going to use that magnifying glass."
   const agendaMenuExtra = [
     { key: "bookings", title: "Bookings", sub: "", icon: <Files size={15} weight="light" />, onClick: () => setShowDocs(true) },
+    { key: "search", title: "Search", sub: "", icon: <MagnifyingGlass size={15} weight="light" />, onClick: () => search.open() },
   ];
-  const search = useGlobalSearch();
+  // List or Day (28 Nov 2026, mock approved): one press switches; the icon is the view you are on.
+  // Kept on this device, so the day opens the way you left it.
+  const [dayView, setDayView] = useState<"list" | "day">("list");
+  useEffect(() => {
+    try { if (localStorage.getItem(DAY_VIEW_KEY) === "day") setDayView("day"); } catch { /* storage blocked: the list */ }
+  }, []);
+  const toggleDayView = () => setDayView((v) => {
+    const next = v === "list" ? "day" : "list";
+    try { localStorage.setItem(DAY_VIEW_KEY, next); } catch { /* still switches */ }
+    return next;
+  });
 
   const handleCardUpdate = useCallback(
     (updated: Card) => {
@@ -936,15 +971,16 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards: st
         </div>
 
         <span className="flex-1" />
-        {/* Search, one tap from the header. It was a row in the menu, where
-            the thing you use most sat among nine others. */}
+        {/* List / Day, where search was (28 Nov 2026). One press switches; no menu, no
+            highlight, no toast: the icon is simply the view you are on. */}
         <button
           type="button"
-          onClick={() => search.open()}
-          aria-label="Search"
+          onClick={toggleDayView}
+          data-testid="day-view-toggle"
+          aria-label={dayView === "list" ? "List view. Show as a day" : "Day view. Show as a list"}
           className="flex items-center justify-center w-11 h-11 text-gray-500 hover:text-gray-800 transition-colors"
         >
-          <MagnifyingGlass size={19} weight="light" />
+          {dayView === "list" ? <ListViewIcon /> : <DayViewIcon />}
         </button>
         <AppMenu
           variant="mobile"
@@ -1223,6 +1259,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards: st
               highlightedCardId={highlightedCardId}
               onGapTap={readOnly ? undefined : handleGapTap}
               cardNumberById={cardNumberById}
+              asDay={phone && dayView === "day"}
               readOnly={readOnly}
               onTimeTap={readOnly ? undefined : (card) => setTimeCard(card)}
               onGiveTimes={readOnly ? undefined : () => void arrangeDayCards(dayWithCards, "rest")}
