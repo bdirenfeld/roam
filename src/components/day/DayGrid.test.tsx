@@ -39,6 +39,25 @@ describe("the phone Day view (28 Nov 2026)", () => {
     expect(by.figo.style.left).not.toBe(by.morg.style.left);
   });
 
+  it("each half-hour line sits exactly halfway between two hour lines (28 Nov 2026: they looked off)", () => {
+    render(<DayGrid cards={day} cardNumberById={nums} />);
+    const hrs = screen.getAllByTestId("day-grid-hour").map((e) => parseFloat(e.style.top));
+    const halves = screen.getAllByTestId("day-grid-half").map((e) => parseFloat(e.style.top));
+    expect(halves).toHaveLength(hrs.length - 1);
+    halves.forEach((y, i) => expect(y).toBe((hrs[i] + hrs[i + 1]) / 2));
+  });
+
+  it("round 2: no outlines (unbooked is a pale fill); travel is one quiet strip: 'Leave for Florence · drive + train'", () => {
+    const leg = (id: string, mode: string, s: string, e: string) => card(id, id, "transit", s, e, false, "", { mode, from: { title: "x" } });
+    const travel = [{ cards: [leg("drive", "drive", "08:00:00", "08:10:00"), leg("train", "train", "08:25:00", "09:25:00")], startMin: 480, endMin: 565, dest: "Florence", leave: true }];
+    render(<DayGrid cards={day} travel={travel} cardNumberById={nums} />);
+    const strip = screen.getByTestId("day-grid-travel");
+    const icon = strip.querySelector(".material-symbols-outlined")?.textContent ?? "";
+    expect(strip.textContent!.replace(icon, "")).toBe("Leave for Florence · drive + train");
+    const figo = screen.getAllByTestId("day-grid-block").find((b) => b.dataset.cardId === "figo")!;
+    expect(figo.style.boxShadow).toBe("none");
+  });
+
   it("a tap opens the card", () => {
     const onTap = vi.fn();
     render(<DayGrid cards={day} cardNumberById={nums} onCardTap={onTap} />);

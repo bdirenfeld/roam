@@ -13,6 +13,9 @@ import { storedOnLandingDay, type TimedCard } from "@/lib/cardTime";
 
 /** A block never gets shorter than this, so a 10-minute stop is still a tappable line. */
 export const MIN_BLOCK_MIN = 30;
+/** The day drawn when nothing falls outside it: 7 AM to 11 PM. */
+export const DAY_FROM = 7;
+export const DAY_TO = 23;
 const DAY_MIN = 24 * 60;
 
 const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
@@ -57,7 +60,7 @@ export function layoutDay<C extends TimedCard>(cards: C[]): DayGrid<C> {
     const span = gridSpan(card);
     if (span) spans.push({ card, start: span.start, end: span.end, col: 0, of: 1 });
   }
-  if (!spans.length) return { fromHour: 9, toHour: 17, items: [] };
+  if (!spans.length) return { fromHour: DAY_FROM, toHour: DAY_TO, items: [] };
   const order = spans.map((it, i) => ({ it, i, s: it.start, e: it.end }));
   order.sort((a, b) => a.s - b.s || b.e - a.e || a.i - b.i);
 
@@ -82,10 +85,13 @@ export function layoutDay<C extends TimedCard>(cards: C[]): DayGrid<C> {
   }
   settle();
 
+  // Always the whole waking day, like Outlook (28 Nov 2026: "How come it's not showing a full
+  // day?" — Tuscany day 1 drew only 7 PM to midnight around its one flight). Stretched when a
+  // card starts before 7 AM or runs past 11 PM.
   const first = Math.min(...spans.map((s) => s.start));
   const last = Math.max(...spans.map((s) => s.end));
-  const fromHour = Math.floor(first / 60);
-  const toHour = Math.min(24, Math.max(fromHour + 3, Math.ceil(last / 60) + 1));
+  const fromHour = Math.min(DAY_FROM, Math.floor(first / 60));
+  const toHour = Math.max(DAY_TO, Math.min(24, Math.ceil(last / 60)));
   return { fromHour, toHour, items: order.map((o) => o.it) };
 }
 

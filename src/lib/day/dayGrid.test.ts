@@ -22,7 +22,7 @@ describe("the phone day as a calendar day (28 Nov 2026)", () => {
     expect(by.howard.end - by.howard.start).toBe(MIN_BLOCK_MIN);
     expect([by.figo.of, by.morgenstern.of, by.figo.col + by.morgenstern.col]).toEqual([2, 2, 1]);
     expect([by.rubirosa.of, by.sloomoo.of]).toEqual([1, 1]);
-    expect([g.fromHour, g.toHour]).toEqual([9, 21]);
+    expect([g.fromHour, g.toHour]).toEqual([7, 23]);
   });
 
   it("New York 26 Jul: Strand, Fishs Eddy and Washington Square overlap; John's and Joe's share a pair; the flight home stands alone", () => {
@@ -60,9 +60,12 @@ describe("the phone day as a calendar day (28 Nov 2026)", () => {
     expect(layoutDay([c("idea", null, null)]).items).toEqual([]);
   });
 
-  it("a short day still draws three hours; labels read 9 AM, 12 PM, 12 AM", () => {
-    const g = layoutDay([c("one", "13:00:00", "13:30:00")]);
-    expect([g.fromHour, g.toHour]).toEqual([13, 16]);
+  it("every day draws 7 AM to 11 PM, stretched for an early start or a late night (Tuscany day 1: one 7 PM flight)", () => {
+    expect(layoutDay([c("yyz", "19:00:00", "11:30:00", "flight_arrival")])).toMatchObject({ fromHour: 7, toHour: 24 });
+    expect(layoutDay([c("one", "13:00:00", "13:30:00")])).toMatchObject({ fromHour: 7, toHour: 23 });
+    expect(layoutDay([c("early", "05:30:00", "06:30:00")])).toMatchObject({ fromHour: 5, toHour: 23 });
+  });
+  it("labels read 9 AM, 12 PM, 12 AM", () => {
     expect([hourLabel(9), hourLabel(12), hourLabel(24), hourLabel(0)]).toEqual(["9 AM", "12 PM", "12 AM", "12 AM"]);
   });
 });

@@ -288,7 +288,13 @@ export default function CardTimeline({
         </div>
       ) : (
         <div>
-          {asDay && timedCards.length > 0 && <DayGrid cards={timedCards} cardNumberById={cardNumberById} onCardTap={onCardTap} />}
+          {asDay && timedCards.length > 0 && (() => {
+            // The grid joins travel legs the way the list does ("Leave for Florence"), as slim strips.
+            const flow = dayFlow(timedCards, isTravelLeg, legDestTitle, stays, { is: isPortCard, name: portName, overnight: isOvernight, nights: nightsInPort, carry: carryPorts });
+            const travel = flow.flatMap((it) => (it.kind === "travel" ? [{ cards: it.cards, startMin: it.startMin, endMin: it.endMin, dest: it.dest, leave: it.leave }] : []));
+            const inTravel = new Set(travel.flatMap((t) => t.cards.map((c) => c.id)));
+            return <DayGrid cards={timedCards.filter((c) => !inTravel.has(c.id))} travel={travel} cardNumberById={cardNumberById} onCardTap={onCardTap} />;
+          })()}
           {!asDay && dayFlow(timedCards, isTravelLeg, legDestTitle, stays, { is: isPortCard, name: portName, overnight: isOvernight, nights: nightsInPort, carry: carryPorts }).map((item) => {
             if (item.kind === "port") {
               return <PortLine key={`${item.card.id}-${item.phase}`} card={item.card} phase={item.phase} name={item.name} onOpen={onCardTap} />;
