@@ -1262,6 +1262,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards: st
               asDay={phone && dayView === "day"}
               readOnly={readOnly}
               onTimeTap={readOnly ? undefined : (card) => setTimeCard(card)}
+              onMoveCard={readOnly ? undefined : (card, start, end) => void handleTimeSave(card, start, end)}
               onGiveTimes={readOnly ? undefined : () => void arrangeDayCards(dayWithCards, "rest")}
               stays={accommodationCard?.place?.title ? [accommodationCard.place.title] : []}
               carryPorts={carryPorts}

@@ -65,7 +65,8 @@ describe("the phone day uses it", () => {
     const t = readFileSync("src/components/day/CardTimeline.tsx", "utf8");
     expect(t).toContain("dayFlow(");
     expect(t).toContain('data-travel-line="1"');
-    expect(t).toContain('data-testid="travel-sheet"');
+    expect(t).toContain("<TravelSheet");
+    expect(readFileSync("src/components/day/TravelSheet.tsx", "utf8")).toContain('data-testid="travel-sheet"');
     const m = readFileSync("src/components/day/DayMap.tsx", "utf8");
     expect(m).toMatch(/!isTravelLeg\(c\)/);
   });

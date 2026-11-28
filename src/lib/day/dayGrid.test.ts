@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { gridSpan, layoutDay, hourLabel, MIN_BLOCK_MIN } from "./dayGrid";
+import { gridSpan, layoutDay, hourLabel, MIN_BLOCK_MIN, minAt, canMove, movedTimes } from "./dayGrid";
 
 // His New York days as they sit in the database (28 Nov 2026).
 const c = (id: string, start: string | null, end: string | null, sub: string | null = null, details: Record<string, unknown> = {}) =>
@@ -67,5 +67,34 @@ describe("the phone day as a calendar day (28 Nov 2026)", () => {
   });
   it("labels read 9 AM, 12 PM, 12 AM", () => {
     expect([hourLabel(9), hourLabel(12), hourLabel(24), hourLabel(0)]).toEqual(["9 AM", "12 PM", "12 AM", "12 AM"]);
+  });
+});
+
+describe("press and drag, tap to add (28 Nov 2026, mock approved)", () => {
+  it("a drag lands on the quarter hour and keeps the block's length", () => {
+    // David 9:45–11:15 dragged down 58 min → 10:45–12:15.
+    expect(movedTimes(c("david", "09:45:00", "11:15:00"), 58)).toEqual({ start: "10:45", end: "12:15" });
+    expect(movedTimes(c("vivoli", "14:00:00", null), -22)).toEqual({ start: "13:45", end: null });
+  });
+  it("a small wobble that snaps back to where it was is no move", () => {
+    expect(movedTimes(c("david", "09:45:00", "11:15:00"), 6)).toBeNull();
+  });
+  it("a block never leaves the day", () => {
+    expect(movedTimes(c("dinner", "22:00:00", "23:30:00"), 180)).toEqual({ start: "22:15", end: "23:45" });
+    expect(movedTimes(c("early", "01:00:00", "02:00:00"), -240)).toEqual({ start: "00:00", end: "01:00" });
+  });
+  it("flights and overnight cards stay put; stops can move", () => {
+    expect(canMove(c("ac8458", "09:20:00", "10:55:00", "flight_arrival", { departure_time: "09:20" }))).toBe(false);
+    expect(canMove(c("late", "22:00:00", "01:00:00"))).toBe(false);
+    expect(canMove(c("david", "09:45:00", "11:15:00", "museum"))).toBe(true);
+    expect(canMove(c("vivoli", "14:00:00", null))).toBe(true);
+    expect(canMove(c("note", null, null))).toBe(false);
+  });
+  it("a tap on the grid gives the quarter hour under the finger", () => {
+    // Grid from 7 AM, 40 px an hour: 100 px down is 9:30; 112 px is still 9:45's quarter.
+    expect(minAt(100, 7, 40)).toBe(9 * 60 + 30);
+    expect(minAt(112, 7, 40)).toBe(9 * 60 + 45);
+    expect(minAt(-20, 7, 40)).toBe(6 * 60 + 30);
+    expect(minAt(99999, 7, 40)).toBe(23 * 60 + 45);
   });
 });

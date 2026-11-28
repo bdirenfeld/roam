@@ -1,7 +1,8 @@
 import { useState } from "react";
 import AddPlaceRow from "@/components/ui/AddPlaceRow";
 import CardSurface from "@/components/cards/CardSurface";
-import DayGrid from "./DayGrid";
+import DayGrid, { type GridTravel } from "./DayGrid";
+import TravelSheet from "./TravelSheet";
 import type { DayWithCards, Card } from "@/types/database";
 import { dayFlow } from "@/lib/day/dayFlow";
 import { isTravelLeg, legDestTitle, iconSubType, legModeWord } from "@/lib/travel/leg";
@@ -48,6 +49,8 @@ interface Props {
   asDay?: boolean;
   /** One orange line by card id (lib/stays/flightGap): landing before check-in, leaving after check-out. */
   rowFlags?: Record<string, string>;
+  /** Day view press-and-drag (28 Nov 2026): the card's new "HH:MM" times. */
+  onMoveCard?: (card: Card, start: string, end: string | null) => void;
 }
 
 const hhmm = (m: number) => `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}:00`;
@@ -96,15 +99,14 @@ function PortLine({ card, phase, name, onOpen }: { card: Card; phase: "arrive" |
  * on one leg opens its card; on a drive-then-train line, a small sheet lists
  * the legs and a tap opens that one.
  */
-function TravelLine({ cards, startMin, endMin, dest, leave, onOpen }: {
-  cards: Card[]; startMin: number; endMin: number | null; dest: string; leave: boolean; onOpen?: (c: Card) => void;
+function TravelLine({ cards, startMin, endMin, dest, leave, onOpen, onOpenRun }: {
+  cards: Card[]; startMin: number; endMin: number | null; dest: string; leave: boolean; onOpen?: (c: Card) => void; onOpenRun?: () => void;
 }) {
-  const [sheet, setSheet] = useState(false);
   const icons = Array.from(new Set(cards.map((c) => iconSubType(c))));
   const len = endMin !== null && endMin > startMin ? stripDuration(endMin - startMin) : null;
   // "Drive to Lucca station · Train to Florence": each leg, in order.
   const legsLine = cards.map((c) => { const w = legModeWord(c.details); const d = legDestTitle(c) ? stripDest(legDestTitle(c)!) : ""; return [w, d && `to ${d}`].filter(Boolean).join(" "); }).filter(Boolean).join(" · ");
-  const tap = onOpen ? () => (cards.length > 1 ? setSheet(true) : onOpen(cards[0])) : undefined;
+  const tap = onOpen ? () => (cards.length > 1 && onOpenRun ? onOpenRun() : onOpen(cards[0])) : undefined;
   const Wrapper = (tap ? "button" : "div") as "button";
   return (
     <div data-travel-line="1" data-card-id={cards[0]?.id}>
@@ -130,31 +132,6 @@ function TravelLine({ cards, startMin, endMin, dest, leave, onOpen }: {
           {legsLine && <span className="block mt-[2px] text-[12.5px] md:text-[13px] leading-[1.45] truncate" style={{ color: "rgba(26,26,46,0.62)" }}>{legsLine}</span>}
         </span>
       </Wrapper>
-      {sheet && onOpen && (
-        <div className="fixed inset-0 z-[60]" data-testid="travel-sheet">
-          <button type="button" aria-label="Close" className="absolute inset-0 bg-black/35" onClick={() => setSheet(false)} />
-          <div className="absolute inset-x-0 bottom-0 bg-white rounded-t-[18px] px-5 pt-2.5 pb-7 max-w-mobile mx-auto">
-            <div className="w-9 h-1 rounded-full mx-auto mb-3.5" style={{ background: "rgba(26,26,46,0.18)" }} />
-            <p className="text-[17px] font-semibold" style={{ color: "#1A1A2E" }}>{formatTimeValue(hhmm(startMin))} → {dest}</p>
-            {len && <p className="text-[13px] mt-0.5 mb-2" style={{ color: "rgba(26,26,46,0.55)" }}>{cards.length} legs · {len}</p>}
-            {cards.map((c) => {
-              const t = c.start_time ? formatTimeValue(c.start_time) : "";
-              const mins = c.start_time && c.end_time ? (Number(c.end_time.slice(0, 2)) * 60 + Number(c.end_time.slice(3, 5))) - (Number(c.start_time.slice(0, 2)) * 60 + Number(c.start_time.slice(3, 5))) : 0;
-              return (
-                <button key={c.id} type="button" onClick={() => { setSheet(false); onOpen(c); }}
-                  className="w-full flex items-center gap-3 py-3.5 min-h-[52px] text-left" style={{ borderTop: "1px solid rgba(26,26,46,0.08)" }}>
-                  <span className="shrink-0" aria-hidden="true" dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(iconSubType(c), 20) }} />
-                  <span className="flex-1 min-w-0">
-                    <span className="block text-[15px] truncate" style={{ color: "#1A1A2E" }}>{legDestTitle(c) ? `To ${stripDest(legDestTitle(c))}` : ""}</span>
-                    <span className="block text-[12.5px]" style={{ color: "rgba(26,26,46,0.55)" }}>{t}{mins > 0 ? ` · ${stripDuration(mins)}` : ""}</span>
-                  </span>
-                  <span aria-hidden="true" style={{ color: "rgba(26,26,46,0.35)", fontSize: 20 }}>›</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -216,8 +193,12 @@ export default function CardTimeline({
   carryPorts,
   asDay = false,
   rowFlags,
+  onMoveCard,
 }: Props) {
   const { cards } = dayWithCards;
+  // The one travel card for a run of legs, from the list's line or the Day view's strip.
+  const [run, setRun] = useState<GridTravel | null>(null);
+  const hm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 
   // DayViewClient's sort already puts every untimed card after every timed
   // one, so this split is contiguous.
@@ -259,6 +240,7 @@ export default function CardTimeline({
 
   return (
     <div className="pb-8">
+      {run && onCardTap && <TravelSheet {...run} onOpen={onCardTap} onClose={() => setRun(null)} />}
       {cards.length === 0 && !carryPorts?.length ? (
         quietEmpty ? (
           <div className="w-full max-w-[320px] mx-auto">{renderAddControls(false)}</div>
@@ -293,14 +275,20 @@ export default function CardTimeline({
             const flow = dayFlow(timedCards, isTravelLeg, legDestTitle, stays, { is: isPortCard, name: portName, overnight: isOvernight, nights: nightsInPort, carry: carryPorts });
             const travel = flow.flatMap((it) => (it.kind === "travel" ? [{ cards: it.cards, startMin: it.startMin, endMin: it.endMin, dest: it.dest, leave: it.leave }] : []));
             const inTravel = new Set(travel.flatMap((t) => t.cards.map((c) => c.id)));
-            return <DayGrid cards={timedCards.filter((c) => !inTravel.has(c.id))} travel={travel} cardNumberById={cardNumberById} onCardTap={onCardTap} />;
+            return (
+              <DayGrid cards={timedCards.filter((c) => !inTravel.has(c.id))} travel={travel} cardNumberById={cardNumberById} onCardTap={onCardTap}
+                onTravelTap={onCardTap ? (t) => (t.cards.length > 1 ? setRun(t) : onCardTap(t.cards[0])) : undefined}
+                onMove={readOnly ? undefined : onMoveCard}
+                onEmptyTap={readOnly || !onGapTap ? undefined : (m) => onGapTap(hm(m), hm(Math.min(m + 60, 23 * 60 + 45)))} />
+            );
           })()}
           {!asDay && dayFlow(timedCards, isTravelLeg, legDestTitle, stays, { is: isPortCard, name: portName, overnight: isOvernight, nights: nightsInPort, carry: carryPorts }).map((item) => {
             if (item.kind === "port") {
               return <PortLine key={`${item.card.id}-${item.phase}`} card={item.card} phase={item.phase} name={item.name} onOpen={onCardTap} />;
             }
             if (item.kind === "travel") {
-              return <TravelLine key={item.ids[0]} cards={item.cards} startMin={item.startMin} endMin={item.endMin} dest={item.dest} leave={item.leave} onOpen={onCardTap} />;
+              return <TravelLine key={item.ids[0]} cards={item.cards} startMin={item.startMin} endMin={item.endMin} dest={item.dest} leave={item.leave} onOpen={onCardTap}
+                onOpenRun={() => setRun({ cards: item.cards, startMin: item.startMin, endMin: item.endMin, dest: item.dest, leave: item.leave })} />;
             }
             // No "In Florence" heading (15 Nov 2026, the Outlook row): one shape,
             // every row, so the address keeps its town.

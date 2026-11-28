@@ -95,6 +95,45 @@ export function layoutDay<C extends TimedCard>(cards: C[]): DayGrid<C> {
   return { fromHour, toHour, items: order.map((o) => o.it) };
 }
 
+/** Moves and taps land on the quarter hour, the way Outlook's drag does. */
+export const SNAP_MIN = 15;
+
+const hm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+
+/** The quarter hour at a point on the grid: `y` px below the top hour line, `hourPx` per hour. */
+export function minAt(y: number, fromHour: number, hourPx: number): number {
+  const m = fromHour * 60 + (y / hourPx) * 60;
+  return Math.max(0, Math.min(DAY_MIN - SNAP_MIN, Math.floor(m / SNAP_MIN) * SNAP_MIN));
+}
+
+/**
+ * Press and drag to move (28 Nov 2026, Brennan: "the ability to do a long press and move it on
+ * the day, kind of how you can do it in the Outlook app"; mock approved). Only a block that is
+ * plainly one stretch of today can move: a flight keeps its schedule, and an overnight card has
+ * no single place on the grid.
+ */
+export function canMove(card: TimedCard & { details?: unknown; place?: { sub_type?: string | null } | null }): boolean {
+  if (!card.start_time) return false;
+  const d = (card.details ?? {}) as Record<string, unknown>;
+  if (card.place?.sub_type?.startsWith("flight") || typeof d.origin_airport === "string" || typeof d.departure_time === "string") return false;
+  return !card.end_time || toMin(card.end_time) > toMin(card.start_time);
+}
+
+/**
+ * The card's new times after a drag of `deltaMin`: the start snapped to the quarter hour, the
+ * length kept, and the whole block kept inside the day. Null when it lands where it was.
+ */
+export function movedTimes(card: TimedCard, deltaMin: number): { start: string; end: string | null } | null {
+  if (!card.start_time) return null;
+  const s = toMin(card.start_time);
+  const len = card.end_time ? toMin(card.end_time) - s : 0;
+  let ns = Math.round((s + deltaMin) / SNAP_MIN) * SNAP_MIN;
+  // The end stays at 11:45 PM or earlier: a stored "24:00" reads as the next day elsewhere.
+  ns = Math.max(0, Math.min(DAY_MIN - SNAP_MIN - len, ns));
+  if (ns === s) return null;
+  return { start: hm(ns), end: card.end_time ? hm(ns + len) : null };
+}
+
 /** "9 AM", "12 PM", "12 AM" (midnight at the bottom of the day). */
 export function hourLabel(h: number): string {
   const hh = h % 24;
