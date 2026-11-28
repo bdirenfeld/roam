@@ -15,6 +15,8 @@ import {
   LEG_MODES, defaultFromForDay, formatLegDuration,
   type LegDay, type LegFrom, type LegMode,
 } from "@/lib/travel/leg";
+import { clockAt, type Way, type WayLeg } from "@/lib/travel/ways";
+import { formatTimeValue } from "@/lib/formatTime";
 
 const INK = "#1A1A2E";
 const CAP = "rgba(26,26,46,0.62)";
@@ -379,8 +381,13 @@ export default function TravelLegPanel({
  * door to directions.
  */
 export function LegRoute({
-  from, fromAddress, toTitle, toAddress, readOnly = false, open, onOpen, onDirections, prominent = false, rows = false, heading = false,
+  from, fromAddress, toTitle, toAddress, readOnly = false, open, onOpen, onDirections, prominent = false, rows = false, heading = false, legs, start,
 }: {
+  /** A way of two or more legs (lib/travel/ways, 28 Nov 2026): a stop per place, each leg's mode
+   *  and time on the line between its two stops ("🚗 Drive · 8:00 – 8:10 AM · 10 min"). */
+  legs?: WayLeg[] | null;
+  /** The card's start, which the legs' times hang from. */
+  start?: string | null;
   /** With rows: the stops ARE the card's heading (25 Nov 2026, the simpler travel card), a size up. */
   heading?: boolean;
   /** The leg card laid out like every other card (16 Nov 2026): From and To as
@@ -464,6 +471,42 @@ export function LegRoute({
         </button>
       );
     };
+    if (legs && legs.length > 1) {
+      const dots = <span aria-hidden="true" className="w-[18px] flex-none relative"><span className="absolute left-[8px] -top-1.5 -bottom-1.5" style={{ borderLeft: "2.5px dotted rgba(26,26,46,0.3)" }} /></span>;
+      return (
+        <div className={heading ? "relative" : "relative mb-4"} data-testid="leg-route">
+          {line("from", from?.title ?? null)}
+          {legs.map((l, i) => {
+            const prev = legs[i - 1];
+            const wait = prev ? l.at - (prev.at + prev.mins) : 0;
+            const last = i === legs.length - 1;
+            const word = l.mode === "drive" ? "Drive" : l.mode === "bus" ? "Bus" : l.mode === "ferry" ? "Ferry" : l.mode === "walk" ? "Walk" : "Train";
+            const glyph = l.mode === "drive" ? "directions_car" : l.mode === "bus" ? "directions_bus" : l.mode === "ferry" ? "directions_boat" : l.mode === "walk" ? "directions_walk" : "train";
+            return (
+              <div key={i}>
+                <div className="flex gap-3.5 min-h-[30px]" data-testid="leg-way-line">
+                  {dots}
+                  <span className="flex flex-wrap items-center gap-x-1 pt-[3px] pb-1.5 text-[13.5px]" style={{ color: CAP }}>
+                    {wait >= 5 && <span className="w-full text-[12px]" style={{ color: "rgba(26,26,46,0.45)" }}>{formatLegDuration(wait)} to change</span>}
+                    <span className="inline-flex items-center gap-1 font-semibold" style={{ color: INK }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: 14, fontVariationSettings: "'FILL' 1" }} aria-hidden="true">{glyph}</span>{word}{l.line && l.mode !== "drive" && l.mode !== "walk" ? ` ${l.line}` : ""}
+                    </span>
+                    {start && l.mode !== "walk" && <span>· {formatTimeValue(clockAt(start, l.at))} – {formatTimeValue(clockAt(start, l.at + l.mins))}</span>}
+                    <span>· {formatLegDuration(Math.max(1, l.mins))}</span>
+                  </span>
+                </div>
+                {last ? line("to", toTitle, toAddress ? (toAddress.split(",").slice(0, 2).join(",").trim()) : null) : (
+                  <div className="relative w-full flex items-center gap-3.5 min-h-[44px]" data-testid="leg-way-stop">
+                    <span aria-hidden="true" className="w-[14px] h-[14px] rounded-full flex-shrink-0 ml-[2px]" style={{ border: "2.5px solid rgba(26,26,46,0.6)" }} />
+                    <span className={`flex-1 min-w-0 block truncate ${heading ? "text-[17px] font-semibold" : "text-[15px] font-medium"}`} style={{ color: INK }}>{l.to.title}</span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
     return (
       <div className={heading ? "relative" : "relative mb-4"} data-testid="leg-route">
         <span aria-hidden="true" className="absolute left-[8px] top-[30px] h-[18px]" style={{ borderLeft: "2.5px dotted rgba(26,26,46,0.3)" }} />
@@ -565,6 +608,45 @@ export function LegEstimateRow({
     <div className="flex flex-wrap items-center gap-2 pt-2" data-testid="leg-estimate">
       {drive != null && pill("drive", drive, "directions_car", "")}
       {transit != null && pill(via ?? "train", transit, via === "bus" ? "directions_bus" : via === "ferry" ? "directions_boat" : "train", changes)}
+    </div>
+  );
+}
+
+/**
+ * The ways to go (28 Nov 2026, mock approved; Rome2Rio / Google Maps): "🚗 1 h 05",
+ * "🚗 + 🚆 1 h 25 · via Lucca", "🚌 + 🚆 1 h 40 · 1 change". The way the card is on is filled;
+ * a tap fills that way's legs into the card.
+ */
+export function LegWaysRow({ ways, current, readOnly = false, onUse }: {
+  ways: Way[];
+  current: Way["kind"] | null;
+  readOnly?: boolean;
+  onUse: (way: Way) => void;
+}) {
+  if (!ways.length) return null;
+  const glyph = (m: string) => (m === "drive" ? "directions_car" : m === "bus" ? "directions_bus" : m === "ferry" ? "directions_boat" : "train");
+  return (
+    <div className="flex flex-wrap items-center gap-2 pt-2" data-testid="leg-ways">
+      {ways.map((w) => {
+        const on = current === w.kind;
+        const modes = Array.from(new Set(w.legs.filter((l) => l.mode !== "walk").map((l) => l.mode)));
+        const changes = w.rides > 1 ? (w.rides - 1 === 1 ? "1 change" : `${w.rides - 1} changes`) : "";
+        const extra = w.kind === "mix" && w.via ? `via ${w.via.replace(/s+(station|stazione)$/i, "").replace(/^stazione( di)?s+/i, "")}` : changes;
+        return (
+          <button key={w.kind} type="button" disabled={readOnly} onClick={() => onUse(w)} aria-pressed={on} data-way={w.kind}
+            className="relative inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] disabled:cursor-default"
+            style={on ? { background: INK, color: "#fff" } : { color: INK, boxShadow: "inset 0 0 0 1px rgba(26,26,46,0.14)" }}>
+            <span aria-hidden="true" className="absolute -inset-y-[7px] -inset-x-1" />
+            {modes.map((m, i) => (
+              <span key={m} className="inline-flex items-center gap-1">
+                {i > 0 && <span style={{ opacity: 0.6, fontSize: 11 }}>+</span>}
+                <span className="material-symbols-outlined" style={{ fontSize: 15 }} aria-hidden="true">{glyph(m)}</span>
+              </span>
+            ))}
+            {fmtMins(w.mins)}{extra ? <span style={{ opacity: 0.7 }}>· {extra}</span> : null}
+          </button>
+        );
+      })}
     </div>
   );
 }

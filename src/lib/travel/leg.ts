@@ -23,6 +23,7 @@
 import { stripDuration } from "@/lib/week/travelStrip";
 import { cardTimes, type TimedCard } from "@/lib/cardTime";
 import { stayRuns, addDays, type StayCard } from "@/lib/stays/stayRuns";
+import { readLegs, waysLabel } from "@/lib/travel/ways";
 
 export type LegMode = "drive" | "bus" | "train" | "ferry";
 
@@ -180,6 +181,9 @@ export function formatLegDuration(mins: number): string {
  *  No mode, no word (7 Oct 2026, mock t05): a leg added without one says only
  *  how long it takes; the app does not guess Drive. */
 export function legModeWord(details: unknown): string {
+  // A card holding a way of several legs (lib/travel/ways, 28 Nov 2026): "Drive + train".
+  const legs = readLegs(details);
+  if (legs) return waysLabel(legs);
   const label = (details as Record<string, unknown> | null)?.mode_label;
   if (typeof label === "string" && label.trim()) return label.trim();
   const mode = readMode(details);

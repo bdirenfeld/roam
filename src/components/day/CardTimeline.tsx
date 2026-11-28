@@ -1,8 +1,7 @@
 import { useState } from "react";
 import AddPlaceRow from "@/components/ui/AddPlaceRow";
 import CardSurface from "@/components/cards/CardSurface";
-import DayGrid, { type GridTravel } from "./DayGrid";
-import TravelSheet from "./TravelSheet";
+import DayGrid from "./DayGrid";
 import type { DayWithCards, Card } from "@/types/database";
 import { dayFlow } from "@/lib/day/dayFlow";
 import { isTravelLeg, legDestTitle, iconSubType, legModeWord } from "@/lib/travel/leg";
@@ -51,6 +50,8 @@ interface Props {
   rowFlags?: Record<string, string>;
   /** Day view press-and-drag (28 Nov 2026): the card's new "HH:MM" times. */
   onMoveCard?: (card: Card, start: string, end: string | null) => void;
+  /** A run of travel legs ("Leave for Florence"): the one travel card, holding every leg (28 Nov 2026). */
+  onRunTap?: (cards: Card[]) => void;
 }
 
 const hhmm = (m: number) => `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}:00`;
@@ -194,10 +195,10 @@ export default function CardTimeline({
   asDay = false,
   rowFlags,
   onMoveCard,
+  onRunTap,
 }: Props) {
   const { cards } = dayWithCards;
-  // The one travel card for a run of legs, from the list's line or the Day view's strip.
-  const [run, setRun] = useState<GridTravel | null>(null);
+  const openRun = (cs: Card[]) => (cs.length > 1 && onRunTap ? onRunTap(cs) : onCardTap?.(cs[0]));
   const hm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 
   // DayViewClient's sort already puts every untimed card after every timed
@@ -240,7 +241,6 @@ export default function CardTimeline({
 
   return (
     <div className="pb-8">
-      {run && onCardTap && <TravelSheet {...run} onOpen={onCardTap} onClose={() => setRun(null)} />}
       {cards.length === 0 && !carryPorts?.length ? (
         quietEmpty ? (
           <div className="w-full max-w-[320px] mx-auto">{renderAddControls(false)}</div>
@@ -277,7 +277,7 @@ export default function CardTimeline({
             const inTravel = new Set(travel.flatMap((t) => t.cards.map((c) => c.id)));
             return (
               <DayGrid cards={timedCards.filter((c) => !inTravel.has(c.id))} travel={travel} cardNumberById={cardNumberById} onCardTap={onCardTap}
-                onTravelTap={onCardTap ? (t) => (t.cards.length > 1 ? setRun(t) : onCardTap(t.cards[0])) : undefined}
+                onTravelTap={onCardTap ? (t) => openRun(t.cards) : undefined}
                 onMove={readOnly ? undefined : onMoveCard}
                 onEmptyTap={readOnly || !onGapTap ? undefined : (m) => onGapTap(hm(m), hm(Math.min(m + 60, 23 * 60 + 45)))} />
             );
@@ -288,7 +288,7 @@ export default function CardTimeline({
             }
             if (item.kind === "travel") {
               return <TravelLine key={item.ids[0]} cards={item.cards} startMin={item.startMin} endMin={item.endMin} dest={item.dest} leave={item.leave} onOpen={onCardTap}
-                onOpenRun={() => setRun({ cards: item.cards, startMin: item.startMin, endMin: item.endMin, dest: item.dest, leave: item.leave })} />;
+                onOpenRun={() => openRun(item.cards)} />;
             }
             // No "In Florence" heading (15 Nov 2026, the Outlook row): one shape,
             // every row, so the address keeps its town.

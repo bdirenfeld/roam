@@ -65,7 +65,8 @@ import StayDatesSheet, { type StayDatesValue } from "./StayDatesSheet";
 import { isPortCard, nightsInPort, nightsPatch, addIsoDays } from "@/lib/cards/port";
 import { withDetails } from "@/lib/cardDetails";
 import { UNTITLED_NOTE, cardTitle, deletedToast } from "@/lib/cardTitle";
-import TravelLegPanel, { LegRoute, LegEstimateRow, LegParkRow, useDefaultFrom } from "./TravelLegPanel";
+import TravelLegPanel, { LegRoute, LegEstimateRow, LegParkRow, LegWaysRow, useDefaultFrom } from "./TravelLegPanel";
+import { readLegs, runLegs, currentWay, waysLabel, type Way } from "@/lib/travel/ways";
 import RouteEditor, { useRouteCards } from "./RouteEditor";
 import { travelEnd } from "./travelEnd";
 import { getAuthUser } from "@/lib/supabase/authUser";
@@ -127,6 +128,11 @@ interface Props {
   /** Fresh from the week's hour menu (27 Nov 2026): open with "What kind of card?" already up,
    *  so the kind is one click, not a pill to notice. Only a place-less card with no kind yet. */
   askKind?: boolean;
+  /** A run of leg cards opened as one ("Leave for Florence"; 28 Nov 2026): this card first. The
+   *  card shows every leg, and picking a way joins the run into this one card. */
+  run?: Card[];
+  /** The run was joined: `kept` holds every leg now, `gone` were archived. */
+  onRunJoined?: (kept: Card, before: Card, gone: Card[]) => void;
 }
 
 /** Drop the booking/flight confirmation reference so it never renders for a
@@ -405,7 +411,7 @@ function TitleEditor({
  *  side — half the 6px gap — so no disc's target reaches its neighbour. */
 const DISC_TARGET = "absolute -inset-x-[3px] -inset-y-2";
 
-export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDelete, onCardCopied, days, tripDestination, partySize = null, readOnly = false, stayCheckOut = null, otherStayNights = {}, otherPortDays = {}, addToDay, onOpenCard, askKind = false }: Props) {
+export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDelete, onCardCopied, days, tripDestination, partySize = null, readOnly = false, stayCheckOut = null, otherStayNights = {}, otherPortDays = {}, addToDay, onOpenCard, askKind = false, run, onRunJoined }: Props) {
   // Every field save reverts on refusal; it also says so now (UX audit,
   // Sep 2026, finding 1). Before, eight sites logged to the console only.
   const { toast } = useToast();
@@ -759,8 +765,15 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
 
   // Car and transit times for this From / To (lib/travel/estimate): asked once
   // per pair, kept on the card, so reopening it costs nothing.
-  const toPt = localCard.place?.lat != null && localCard.place?.lng != null ? { lat: localCard.place.lat, lng: localCard.place.lng } : null;
-  const legEstimate = legCapable ? readEstimate(localCard.details, legFrom, toPt) : null;
+  // A run still made of separate cards shows as one (28 Nov 2026): its legs, to the last card's place.
+  const runOn = !!run && run.length > 1 && run[0].id === localCard.id && !readLegs(localCard.details);
+  const runEnd = runOn ? run![run!.length - 1] : null;
+  const wayLegs = readLegs(localCard.details) ?? (runOn ? runLegs(run!, (c) => legDestTitle(c as Card)) : null);
+  const endPlace = runEnd?.place ?? localCard.place;
+  const toPt = endPlace?.lat != null && endPlace?.lng != null ? { lat: endPlace.lat, lng: endPlace.lng } : null;
+  // The run's estimate is for its whole trip, so it is held here until a way is picked.
+  const [runEstimate, setRunEstimate] = useState<LegEstimate | null>(null);
+  const legEstimate = legCapable ? (runOn ? runEstimate : readEstimate(localCard.details, legFrom, toPt)) : null;
   // One travel row on the simpler card: once Google has said how this trip can
   // be made, its car / transit pills ARE the choices (Brennan, 14 Nov 2026: "you
   // can't take a ferry across land in Italy"), so no caption and no four-mode
@@ -770,7 +783,8 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   const legMerged = legCard && (!!legEstimate || !!legPark) && !(localCard.details as { mode_label?: unknown } | null)?.mode_label;
   const asked = useRef<string | null>(null);
   useEffect(() => {
-    if (readOnly || !legCapable || !legFrom || !toPt || legEstimate) return;
+    // An estimate saved before the ways existed is asked for again, once (it has no legs).
+    if (readOnly || !legCapable || !legFrom || !toPt || (legEstimate && legEstimate.ways)) return;
     const k = `${legFrom.lat},${legFrom.lng}>${toPt.lat},${toPt.lng}`;
     if (asked.current === k) return;
     asked.current = k;
@@ -778,11 +792,12 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
     const hour = localCard.start_time ? Number(localCard.start_time.slice(0, 2)) : 9;
     fetch("/api/travel/estimate", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ from: { lat: legFrom.lat, lng: legFrom.lng }, to: toPt, date, hour }),
+      body: JSON.stringify({ from: { lat: legFrom.lat, lng: legFrom.lng }, to: toPt, date, hour, fromTitle: legFrom.title, toTitle: runEnd ? legDestTitle(runEnd) : legDestTitle(localCard) }),
     })
       .then((r) => (r.ok ? r.json() : null))
       .then((est: LegEstimate | null) => {
         if (!est || (est.drive == null && est.transit == null)) return;
+        if (runOn) { setRunEstimate(est); return; }
         setLocalCard((cur) => {
           const next = { ...cur, details: { ...(cur.details as Record<string, unknown>), estimate: est } as Card["details"] } as Card;
           const patch: Record<string, unknown> = { details: next.details };
@@ -802,13 +817,51 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       })
       .catch(() => { /* no times: the row just doesn't show */ });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [readOnly, legCapable, legFrom?.lat, legFrom?.lng, toPt?.lat, toPt?.lng, !!legEstimate]);
+  }, [readOnly, legCapable, legFrom?.lat, legFrom?.lng, toPt?.lat, toPt?.lng, !!legEstimate?.ways]);
+
+  // A tap on a way (28 Nov 2026): its legs into this one card, the end time moved to fit, one write.
+  // A run of separate cards is joined: this card goes to the run's last place, the others are
+  // archived (the day view's toast offers Undo).
+  const applyWay = useCallback(async (way: Way) => {
+    const prev = localCard;
+    const details = { ...(localCard.details as Record<string, unknown>) } as Record<string, unknown>;
+    const ridden = way.legs.find((l) => l.mode !== "walk")?.mode ?? "drive";
+    details.mode = ridden === "walk" ? "drive" : ridden;
+    details.way = way.kind;
+    delete details.mode_label;
+    if (way.legs.length > 1) { details.legs = way.legs; delete details.park; } else delete details.legs;
+    if (legEstimate) details.estimate = legEstimate;
+    const patch: Record<string, unknown> = { details };
+    if (localCard.start_time) patch.end_time = toDbTime(endAfter(localCard.start_time, planMinutes(way.mins)));
+    let gone: Card[] = [];
+    let place = localCard.place;
+    if (runOn && runEnd) {
+      gone = run!.slice(1);
+      patch.place_id = runEnd.place_id;
+      place = runEnd.place;
+      const withNewTo = withTo(details, legDestTitle(runEnd));
+      Object.assign(details, withNewTo);
+      // Every card's notes come along.
+      const notes = run!.map((c) => (c.details as { notes?: unknown } | null)?.notes).filter((n): n is string => typeof n === "string" && !!n.trim());
+      if (notes.length) details.notes = Array.from(new Set(notes)).join("\n\n");
+    }
+    const updated = { ...localCard, ...patch, place } as Card;
+    setLocalCard(updated);
+    onCardUpdate?.(updated);
+    const { error } = await queuedUpdate("cards", { id: localCard.id }, patch);
+    if (error) { toast({ message: "Couldn't save that. Try again." }); setLocalCard(prev); onCardUpdate?.(prev); return; }
+    if (gone.length) {
+      for (const g of gone) await queuedUpdate("cards", { id: g.id }, { archived: true });
+      onRunJoined?.(updated, prev, gone);
+    }
+  }, [localCard, legEstimate, runOn, runEnd, run, onCardUpdate, onRunJoined, toast]);
 
   // A tap on a time: that mode, and the end time moved to fit. One write.
   const applyEstimate = useCallback(async (mode: LegMode, mins: number) => {
     const prev = localCard;
     const details = { ...(localCard.details as Record<string, unknown>), mode } as Record<string, unknown>;
     if (mode !== readMode(localCard.details)) delete details.mode_label;
+    delete details.legs; delete details.way;
     const patch: Record<string, unknown> = { details };
     if (localCard.start_time) patch.end_time = toDbTime(endAfter(localCard.start_time, planMinutes(mins)));
     const updated = { ...localCard, ...patch } as Card;
@@ -837,7 +890,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       const details = withTo(localCard.details, placeRow.title as string);
       if (!readMode(details)) details.mode = "drive";
       // The old car park and the old times belonged to the old place.
-      delete details.park;
+      delete details.park; delete details.legs; delete details.way;
       retimeAfterTo.current = true;
       const note = (localCard.details as { notes?: unknown } | null)?.notes;
       if (typeof note === "string" && note.trim()) setStaleNoteFor(legDestTitle(localCard));
@@ -855,7 +908,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   const handleLegFrom = useCallback((f: LegFrom) => {
     setLegOpen(null);
     const details = withFrom(localCard.details, f);
-    delete details.park;
+    delete details.park; delete details.legs; delete details.way;
     retimeAfterTo.current = true;
     void saveDetailsPatch(details);
   }, [localCard.details, saveDetailsPatch]);
@@ -872,7 +925,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
       const newFrom: LegFrom = { title: legDestTitle(localCard), lat: p.lat, lng: p.lng, ...(localCard.place_id ? { place_id: localCard.place_id } : {}), ...(p.address ? { address: p.address } : {}) };
       const placeId = await travelEnd(supabase, user.id, legFrom);
       const details: Record<string, unknown> = { ...(localCard.details as Record<string, unknown>), from: newFrom };
-      delete details.park;
+      delete details.park; delete details.legs; delete details.way;
       if (details.named === true && typeof details.title === "string" && details.title.includes("→")) details.title = `${newFrom.title} → ${legFrom.title}`;
       retimeAfterTo.current = true;
       const { error } = await supabase.from("cards").update({ place_id: placeId, details }).eq("id", localCard.id);
@@ -1559,16 +1612,16 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                   <button
                     type="button"
                     data-testid="leg-mode-pill"
-                    onClick={readOnly || legMerged ? undefined : () => setLegModesOpen((v) => !v)}
-                    aria-label={readOnly || legMerged ? undefined : "Change how you travel"}
-                    aria-expanded={readOnly || legMerged ? undefined : legModesOpen}
-                    className={`relative flex items-center gap-1.5 px-2 py-1 rounded-lg bg-gray-100 ${readOnly || legMerged ? "cursor-default" : "active:opacity-70"}`}
+                    onClick={readOnly || legMerged || runOn ? undefined : () => setLegModesOpen((v) => !v)}
+                    aria-label={readOnly || legMerged || runOn ? undefined : "Change how you travel"}
+                    aria-expanded={readOnly || legMerged || runOn ? undefined : legModesOpen}
+                    className={`relative flex items-center gap-1.5 px-2 py-1 rounded-lg bg-gray-100 ${readOnly || legMerged || runOn ? "cursor-default" : "active:opacity-70"}`}
                   >
                     {!readOnly && !legMerged && <span aria-hidden="true" className="absolute -inset-x-1 -top-2 -bottom-3" />}
                     <span aria-hidden="true" className="flex items-center text-[#1A1A2E]"
                       // eslint-disable-next-line react/no-danger
                       dangerouslySetInnerHTML={{ __html: getMaterialIconHTML(iconSubType(localCard), 14) }} />
-                    <span className="text-[11px] font-semibold text-[#1A1A2E]">{legModeWord(localCard.details) || "How you travel"}</span>
+                    <span className="text-[11px] font-semibold text-[#1A1A2E]">{(runOn && wayLegs ? waysLabel(wayLegs) : legModeWord(localCard.details)) || "How you travel"}</span>
                     {!readOnly && !legMerged && (
                       <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-[#1A1A2E]"><polyline points="6 9 12 15 18 9" /></svg>
                     )}
@@ -1991,10 +2044,12 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
               <LegRoute
                 rows
                 heading
+                legs={wayLegs}
+                start={localCard.start_time}
                 from={legFrom}
                 fromAddress={fromAddress}
-                toTitle={legDestTitle(localCard)}
-                toAddress={place.address}
+                toTitle={runEnd ? legDestTitle(runEnd) : legDestTitle(localCard)}
+                toAddress={runEnd ? runEnd.place?.address : place.address}
                 readOnly={readOnly}
                 open={legOpen}
                 onOpen={(w) => { setLegOpen(w); if (w) setEditorUsed(true); scrollRef.current?.scrollTo?.({ top: 0 }); }}
@@ -2083,15 +2138,15 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                 {localCard.start_time ? (
                   <>
                     <span style={{ borderBottom: "1px dashed rgba(26,26,46,0.35)" }}>{formatTimeValue(localCard.start_time)}</span>
-                    {localCard.end_time ? ` – ${formatTimeValue(localCard.end_time)}` : ""}
+                    {(runEnd?.end_time ?? localCard.end_time) ? ` – ${formatTimeValue((runEnd?.end_time ?? localCard.end_time)!)}` : ""}
                   </>
                 ) : <span style={{ borderBottom: "1px dashed rgba(26,26,46,0.35)" }}>Set a time</span>}
               </button>
-              {legDurationMins(localCard) && (
+              {legDurationMins(runEnd ? { start_time: localCard.start_time, end_time: runEnd.end_time, details: {} } : localCard) && (
                 <>
                   <span aria-hidden="true" className="text-[14px]" style={{ color: "rgba(26,26,46,0.4)" }}>·</span>
                   <span className="text-[14px]" style={{ color: "rgba(26,26,46,0.62)" }} data-testid="leg-length">
-                    {formatLegDuration(legDurationMins(localCard)!)}{legMerged && legModeWord(localCard.details) ? ` ${legModeWord(localCard.details).toLowerCase()}` : ""}
+                    {formatLegDuration(legDurationMins(runEnd ? { start_time: localCard.start_time, end_time: runEnd.end_time, details: {} } : localCard)!)}{legMerged && !wayLegs && legModeWord(localCard.details) ? ` ${legModeWord(localCard.details).toLowerCase()}` : ""}
                   </span>
                 </>
               )}
@@ -2223,7 +2278,14 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                         onUse={(mins) => void applyEstimate("drive", mins)}
                       />
                     )}
-                    {legEstimate && (
+                    {legEstimate?.ways && legEstimate.ways.length > 0 ? (
+                      <LegWaysRow
+                        ways={legPark ? legEstimate.ways.filter((w) => w.kind !== "drive") : legEstimate.ways}
+                        current={runOn ? null : currentWay(localCard.details)}
+                        readOnly={readOnly}
+                        onUse={(w) => void applyWay(w)}
+                      />
+                    ) : legEstimate && (
                     <LegEstimateRow
                       drive={legPark ? null : legEstimate.drive}
                       transit={legEstimate.transit}
@@ -2241,7 +2303,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
                     // a tap on the one already chosen changes nothing.
                     if (m === readMode(localCard.details)) return;
                     const next: Record<string, unknown> = { ...(localCard.details as Record<string, unknown>), mode: m };
-                    delete next.mode_label;
+                    delete next.mode_label; delete next.legs; delete next.way;
                     void saveDetailsPatch(next);
                   }}
                 />

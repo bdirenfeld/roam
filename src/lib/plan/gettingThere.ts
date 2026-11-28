@@ -30,8 +30,13 @@ export interface RouteStep {
   to?: string;
   stops?: number;
   minutes: number;
+  /** A ride's timetabled departure, epoch seconds (28 Nov 2026, lib/travel/ways). */
+  dep?: number;
+  /** Where a ride gets off, so a drive-then-train way can name and pin the station. */
+  toPt?: { lat: number; lng: number };
 }
-export interface Route { minutes: number; km: number; steps: RouteStep[] }
+/** `dep`: when the route sets off, epoch seconds (transit answers carry it). */
+export interface Route { minutes: number; km: number; steps: RouteStep[]; dep?: number }
 
 const PARKING_MIN = 15;
 /** Nobody leaves before this: the day moves later instead. */
@@ -39,8 +44,9 @@ export const EARLIEST_LEAVE = 8 * 60;
 /** Ten minutes to get out of the door. */
 const DOOR_MIN = 10;
 
-type GStep = { travel_mode?: string; duration?: { value?: number }; transit_details?: { line?: { short_name?: string; name?: string; vehicle?: { type?: string } }; departure_stop?: { name?: string }; arrival_stop?: { name?: string }; num_stops?: number } };
-type GLeg = { duration?: { value?: number }; distance?: { value?: number }; steps?: GStep[] };
+type GLoc = { lat?: number; lng?: number };
+type GStep = { travel_mode?: string; duration?: { value?: number }; transit_details?: { line?: { short_name?: string; name?: string; vehicle?: { type?: string } }; departure_stop?: { name?: string }; arrival_stop?: { name?: string; location?: GLoc }; num_stops?: number; departure_time?: { value?: number } } };
+type GLeg = { duration?: { value?: number }; distance?: { value?: number }; steps?: GStep[]; departure_time?: { value?: number } };
 
 /**
  * Minutes with traffic (19 Nov 2026, the drive to the airport): Google's
@@ -62,11 +68,19 @@ export function routeFrom(json: unknown): Route | null {
     const m = Math.round((s.duration?.value ?? 0) / 60);
     const t = s.transit_details;
     if (s.travel_mode === "TRANSIT" && t) {
-      return { kind: "ride", vehicle: t.line?.vehicle?.type, line: t.line?.short_name || t.line?.name, from: t.departure_stop?.name, to: t.arrival_stop?.name, stops: t.num_stops, minutes: m };
+      const loc = t.arrival_stop?.location;
+      return {
+        kind: "ride", vehicle: t.line?.vehicle?.type, line: t.line?.short_name || t.line?.name, from: t.departure_stop?.name, to: t.arrival_stop?.name, stops: t.num_stops, minutes: m,
+        ...(typeof t.departure_time?.value === "number" ? { dep: t.departure_time.value } : {}),
+        ...(typeof loc?.lat === "number" && typeof loc?.lng === "number" ? { toPt: { lat: loc.lat, lng: loc.lng } } : {}),
+      };
     }
     return { kind: "walk", minutes: m };
   });
-  return { minutes: Math.round(leg.duration.value / 60), km: Math.round((leg.distance?.value ?? 0) / 100) / 10, steps };
+  return {
+    minutes: Math.round(leg.duration.value / 60), km: Math.round((leg.distance?.value ?? 0) / 100) / 10, steps,
+    ...(typeof leg.departure_time?.value === "number" ? { dep: leg.departure_time.value } : {}),
+  };
 }
 
 export function changes(r: Route): number {

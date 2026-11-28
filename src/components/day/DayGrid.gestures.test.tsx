@@ -2,7 +2,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import DayGrid from "./DayGrid";
-import TravelSheet from "./TravelSheet";
 import CardTimeline from "./CardTimeline";
 import type { Card } from "@/types/database";
 
@@ -17,7 +16,6 @@ const legs = [
   card("drive", "Lucca station", "transit", "08:00:00", "08:10:00", { mode: "drive", from: { title: "Villa Zambaldi", lat: 43.85, lng: 10.5 } }),
   card("train", "Firenze Santa Maria Novella", "transit", "08:25:00", "09:25:00", { mode: "train", from: { title: "Lucca station", lat: 43.84, lng: 10.5 } }),
 ];
-const run = { cards: legs, startMin: 480, endMin: 565, dest: "Florence", leave: true };
 const block = (id: string) => screen.getAllByTestId("day-grid-block").find((b) => b.dataset.cardId === id)!;
 
 afterEach(() => vi.useRealTimers());
@@ -78,22 +76,15 @@ describe("Day view gestures (28 Nov 2026)", () => {
     expect(onGap).toHaveBeenCalledWith("18:15", "19:15");
   });
 
-  it("the travel strip opens one travel card with the steps, A to B", () => {
+  it("the travel strip and the list line both open the one travel card for the whole run", () => {
+    const onRun = vi.fn();
     const dwc = { id: "d1", trip_id: "t", date: "2027-08-28", day_number: 5, day_name: null, narrative_position: null, theme: null, created_at: "", cards: [...legs, david] } as never;
-    render(<CardTimeline dayWithCards={dwc} onCardTap={() => {}} asDay />);
+    const { rerender } = render(<CardTimeline dayWithCards={dwc} onCardTap={() => {}} onRunTap={onRun} asDay />);
     fireEvent.click(screen.getByTestId("day-grid-travel"));
-    const sheet = screen.getByTestId("travel-sheet");
-    expect(sheet.textContent).toContain("Leave for Firenze Santa Maria Novella");
-    expect(screen.getAllByTestId("travel-step")).toHaveLength(2);
-    expect(screen.getByTestId("travel-step-change").textContent).toBe("15 min to change");
-    expect(screen.getByTestId("travel-step-arrive").textContent).toContain("9:25 AMArrive Firenze");
-  });
-
-  it("a step opens that leg's own card, where it is edited", () => {
-    const onOpen = vi.fn(), onClose = vi.fn();
-    render(<TravelSheet {...run} onOpen={onOpen} onClose={onClose} />);
-    fireEvent.click(screen.getAllByTestId("travel-step")[1]);
-    expect(onOpen).toHaveBeenCalledWith(legs[1]);
-    expect(onClose).toHaveBeenCalled();
+    expect(onRun).toHaveBeenLastCalledWith(legs);
+    rerender(<CardTimeline dayWithCards={dwc} onCardTap={() => {}} onRunTap={onRun} />);
+    fireEvent.click(document.querySelector("[data-travel-line] button")!);
+    expect(onRun).toHaveBeenCalledTimes(2);
+    expect(screen.queryByTestId("travel-sheet")).toBeNull();
   });
 });

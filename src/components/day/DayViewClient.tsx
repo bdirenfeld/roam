@@ -833,9 +833,31 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards: st
   }, [localCards]);
 
   const handleCardTap = useCallback((card: Card) => {
+    setSelectedRun(null);
     setSelectedCard(card);
     setIsCardOpen(true);
   }, []);
+  // "Leave for Florence" (28 Nov 2026): the one travel card opens with every leg of the run.
+  const [selectedRun, setSelectedRun] = useState<Card[] | null>(null);
+  const handleRunTap = useCallback((cards: Card[]) => {
+    setSelectedRun(cards);
+    setSelectedCard(cards[0]);
+    setIsCardOpen(true);
+  }, []);
+  // A way picked on a run joins it into the first card; Undo puts the cards back.
+  const handleRunJoined = useCallback((kept: Card, before: Card, gone: Card[]) => {
+    const ids = new Set(gone.map((g) => g.id));
+    setSelectedRun(null);
+    setLocalCards((prev) => prev.filter((c) => !ids.has(c.id)).map((c) => (c.id === kept.id ? kept : c)));
+    toast({
+      message: "One travel card now",
+      undo: async () => {
+        for (const g of gone) await queuedUpdate("cards", { id: g.id }, { archived: false });
+        await queuedUpdate("cards", { id: before.id }, { place_id: before.place_id, details: before.details, end_time: before.end_time });
+        setLocalCards((prev) => [...prev.filter((c) => c.id !== before.id && !ids.has(c.id)), before, ...gone].sort(agendaOrder));
+      },
+    });
+  }, [toast]);
 
   const handleGapTap = useCallback((startTime: string, endTime: string) => {
     setGapTimes({ start: startTime, end: endTime });
@@ -1263,6 +1285,7 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards: st
               readOnly={readOnly}
               onTimeTap={readOnly ? undefined : (card) => setTimeCard(card)}
               onMoveCard={readOnly ? undefined : (card, start, end) => void handleTimeSave(card, start, end)}
+              onRunTap={handleRunTap}
               onGiveTimes={readOnly ? undefined : () => void arrangeDayCards(dayWithCards, "rest")}
               stays={accommodationCard?.place?.title ? [accommodationCard.place.title] : []}
               carryPorts={carryPorts}
@@ -1293,11 +1316,14 @@ export default function DayViewClient({ trip, days, dayWithCards, hotelCards: st
           onClose={() => {
             dropIfBlank(selectedCard.id);
             setSelectedCard(null);
+            setSelectedRun(null);
             setIsCardOpen(false);
             if (returnToAddRef.current) { setAddHidden(false); returnToAddRef.current = null; }
             setPreviewAdd(null);
           }}
           onCardUpdate={handleCardUpdate}
+          run={selectedRun && selectedRun[0]?.id === selectedCard.id ? selectedRun : undefined}
+          onRunJoined={readOnly ? undefined : handleRunJoined}
           onCardDelete={handleCardDelete}
           onCardCopied={handleCardCopied}
           days={days}

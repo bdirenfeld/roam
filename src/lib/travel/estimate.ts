@@ -6,6 +6,8 @@
  * answer is kept on the card (details.estimate) so reopening costs nothing.
  */
 
+import { readWays, type Way } from "@/lib/travel/ways";
+
 export interface Pt { lat: number; lng: number }
 
 export interface LegEstimate {
@@ -17,6 +19,9 @@ export interface LegEstimate {
   rides: number | null;
   /** What the transit route mostly rides: the mode a tap on it sets. */
   via: "train" | "bus" | "ferry" | null;
+  /** The ways to go, each with its legs (lib/travel/ways, 28 Nov 2026). Absent on an
+   *  estimate saved before then, which the card asks again for once. */
+  ways?: Way[];
 }
 
 const r4 = (n: number) => Math.round(n * 1e4) / 1e4;
@@ -31,7 +36,8 @@ export function readEstimate(details: unknown, from: Pt | null, to: Pt | null): 
   const e = (details as Record<string, unknown> | null)?.estimate as Record<string, unknown> | undefined;
   if (!e || typeof e !== "object" || e.key !== estimateKey(from, to)) return null;
   const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v > 0 ? Math.round(v) : null);
-  return { key: e.key as string, drive: num(e.drive), transit: num(e.transit), rides: num(e.rides), via: e.via === "train" || e.via === "bus" || e.via === "ferry" ? e.via : null };
+  const ways = readWays(e.ways);
+  return { key: e.key as string, drive: num(e.drive), transit: num(e.transit), rides: num(e.rides), via: e.via === "train" || e.via === "bus" || e.via === "ferry" ? e.via : null, ...(ways ? { ways } : {}) };
 }
 
 /** Round to what a person plans by: 5-minute steps, never below 5. */
