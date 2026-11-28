@@ -2723,3 +2723,9 @@ No grey helper text in this sheet, no "what's sent" link (his ruling); the priva
 - lib/stays/flightGap `stayGaps`: landing 3 h+ before check-in on the check-in day, or leaving for the airport (takeoff minus 3 h) 2 h+ after check-out. No check-out time = 11 AM; no check-in time = nothing said. Flight moments come from flightsInAir, so two-card, overnight and doubled flights count once.
 - Hotel card: an orange line under Check-in / Check-out with what to ask ("Ask for early check-in, or leave your bags."). Day list: the line REPLACES the grey address line ("You land 3 h early" on the hotel, "Late check-out?" on the flight home), two lines per row as always; the longer wording was cut off by the Booked badge at 375 px.
 - He rejected a tappable version with a sheet (Ask the hotel / Add a bag drop / Sorted): "too fancy… way more complexity". Do not re-propose it.
+
+## Bookings: only Booked cards tick a row; the circle is a checkbox (28 Nov 2026, mock approved)
+- lib/booking/checklist: a flight, hotel or car card on the days ticks its row only when `confirmed` (marked Booked, or uploaded). A placeholder says "Planned for 24 Aug and 5 Sep · not booked" / "Villa X planned · not booked". Tuscany read "Everything's booked" with nothing booked: "It says everything's booked but nothing's booked".
+- A night spent on a flight (flightsInAir crossing midnight) needs no stay, so Tuscany's villa covers "11 nights" and Stays ticks.
+- `CheckRow.auto` = what the cards alone say. The circle (`to-book-<key>-tick`, role checkbox) toggles: untick a row its cards tick → saves "open"; tick it again → clears. No cost prompt from the circle (it opened the keyboard); long press / right click opens the old menu (Not needed, What did it cost?, files). A hand-ticked row shows its cards' dates, not "Marked booked".
+- Card selects feeding checklistRows must include `confirmed` (ToBookSection, trips page, eve-of-departure toast all do).

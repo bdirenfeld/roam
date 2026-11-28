@@ -92,9 +92,10 @@ describe("New York (Mia & Daddy): everything but a car is on the days", () => {
   it("the car is picked up two hours after landing (10:55 → 13h), at LaGuardia", () => {
     expect(r.car.url).toBe("https://www.ca.kayak.com/cars/LGA/2026-07-23-13h/2026-07-26-10h");
   });
-  it("a rental car on a day ticks Car", () => {
-    const pick = { id: "car1", day_id: input.days[0].id, place_id: null, status: "in_itinerary", details: { title: "Pick up rental car · Hertz", drop_off: "2026-07-26" }, place: { sub_type: "transit", title: "Hertz", address: null } };
-    expect(rowsOf({ ...input, cards: [...input.cards, pick] }).car).toMatchObject({ state: "booked", line: "Hertz · 23–26 Jul", name: "Hertz", dayId: input.days[0].id });
+  it("a rental car on a day ticks Car once it is marked Booked; before that it is planned, not booked (28 Nov 2026)", () => {
+    const pick = { id: "car1", day_id: input.days[0].id, place_id: null, status: "in_itinerary", confirmed: true, details: { title: "Pick up rental car · Hertz", drop_off: "2026-07-26" }, place: { sub_type: "transit", title: "Hertz", address: null } };
+    expect(rowsOf({ ...input, cards: [...input.cards, pick] }).car).toMatchObject({ state: "booked", line: "Hertz · 23–26 Jul", name: "Hertz", dayId: input.days[0].id, auto: "booked" });
+    expect(rowsOf({ ...input, cards: [...input.cards, { ...pick, confirmed: false }] }).car).toMatchObject({ state: "open", line: "Planned for 23–26 Jul · not booked", auto: null });
   });
 });
 
@@ -122,8 +123,11 @@ describe("Last Week of Summer (at home in Toronto)", () => {
 
 describe("Australia (flights on the days, no hotel)", () => {
   const r = rowsOf(get("Australia", { airports: ["SYD"] }));
-  it("Flights ticks itself; Stays and Car stay open", () => {
-    expect(r.flights).toMatchObject({ state: "booked", line: "15 Feb and 20 Feb" });
+  it("Flights not marked Booked are planned, not booked; marked, they tick; Stays and Car stay open (28 Nov 2026)", () => {
+    expect(r.flights).toMatchObject({ state: "open", line: "Planned for 15 Feb and 20 Feb · not booked" });
+    const a = get("Australia", { airports: ["SYD"] });
+    const booked = rowsOf({ ...a, cards: a.cards.map((c) => ({ ...c, confirmed: true })) });
+    expect(booked.flights).toMatchObject({ state: "booked", line: "15 Feb and 20 Feb" });
     expect(r.stays.state).toBe("open");
     expect(r.car.state).toBe("open");
   });
@@ -132,6 +136,37 @@ describe("Australia (flights on the days, no hotel)", () => {
   });
   it("the party is the journey's ages: 41 and 71 adults, one child of 8", () => {
     expect(r.stays.url).toContain("/2adults/1children-8");
+  });
+});
+
+describe("only what is marked Booked ticks a row (28 Nov 2026: 'It says everything's booked but nothing's booked')", () => {
+  const tusDays = ["2027-08-24", "2027-08-25", "2027-08-26", "2027-08-27", "2027-08-28", "2027-08-29", "2027-08-30", "2027-08-31", "2027-09-01", "2027-09-02", "2027-09-03", "2027-09-04", "2027-09-05"].map((date, i) => ({ id: `d${i}`, date }));
+  const card = (id: string, day: number, start: string, end: string | null, confirmed: boolean, sub: string, title: string, details: Record<string, unknown> = {}) =>
+    ({ id, day_id: `d${day}`, place_id: "p-" + id, status: "in_itinerary", confirmed, start_time: start, end_time: end, details, place: { sub_type: sub, title, address: "Lucca, Italy" } });
+  // Tuscany in the database today: placeholder flights and van, the villa marked Booked.
+  const cards = [
+    card("yyz", 0, "19:00:00", "11:30:00", false, "flight_arrival", "YYZ Terminal 1", { origin_airport: "YYZ", arriving_at: "PSA" }),
+    card("villa", 1, "17:00:00", null, true, "hotel", "Villa Zambaldi", { check_out: "2027-09-05" }),
+    card("van", 1, "12:30:00", null, false, "car_rental", "Pick up rental van", { drop_off: "2027-09-05" }),
+    card("home", 12, "13:45:00", "21:30:00", false, "flight_arrival", "Fly home to Toronto", { origin_airport: "PSA", arriving_at: "YYZ" }),
+  ];
+  const base = get("Tuscany", { airports: ["PSA"] });
+  const tus: CheckInput = { ...base, trip: { ...base.trip, start_date: "2027-08-24", end_date: "2027-09-05", booking_checklist: null }, days: tusDays, cards };
+  const r = rowsOf(tus);
+  it("Flights: planned for 24 Aug and 5 Sep, not booked", () => expect(r.flights).toMatchObject({ state: "open", line: "Planned for 24 Aug and 5 Sep · not booked" }));
+  it("Stays: the villa covers every night but the one on the plane", () => expect(r.stays).toMatchObject({ state: "booked", line: "Villa Zambaldi · 11 nights" }));
+  it("Car: the van is planned, not booked", () => expect(r.car).toMatchObject({ state: "open", line: "Planned for 25 Aug – 5 Sep · not booked" }));
+  it("a villa not marked Booked names itself on the open row", () => {
+    const unbooked = rowsOf({ ...tus, cards: cards.map((c) => (c.id === "villa" ? { ...c, confirmed: false } : c)) });
+    expect(unbooked.stays).toMatchObject({ state: "open", line: "Villa Zambaldi planned · not booked" });
+  });
+  it("a row ticked by hand shows its dates, not Marked booked", () => {
+    const hand = rowsOf({ ...tus, trip: { ...tus.trip, booking_checklist: { flights: "booked", car: "booked" } } });
+    expect(hand.flights).toMatchObject({ state: "booked", line: "24 Aug and 5 Sep" });
+    expect(hand.car).toMatchObject({ state: "booked", line: "Pick up rental van · 25 Aug – 5 Sep" });
+  });
+  it("an uploaded booking comes in Booked and ticks its row", () => {
+    expect(rowsOf({ ...tus, cards: cards.map((c) => ({ ...c, confirmed: true })) }).flights.state).toBe("booked");
   });
 });
 

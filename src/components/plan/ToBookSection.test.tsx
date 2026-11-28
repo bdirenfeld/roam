@@ -86,11 +86,11 @@ describe("Bookings: three rows, one mark each", () => {
     expect(rowOf("car").textContent).toBe("CarPisa airport · 7 seats›");
     expect(rowOf("car").getAttribute("href")).toBe("https://www.ca.kayak.com/cars/PSA/2027-08-24-14h/2027-09-04-10h?sort=rank_a&fs=carcapacity=pas_7_X");
 
-    // One mark per row, a 44px target; no checkbox, no ⋯, no ↗, no section labels.
-    const mark = within(flights).getByRole("button", { name: "Flights: still to book. Change" });
+    // One mark per row, a 44px target, and it is a checkbox (28 Nov 2026); no ⋯, no ↗, no section labels.
+    const mark = within(flights).getByRole("checkbox", { name: /^Flights: still to book./ });
     expect(mark.className).toContain("w-11 h-11");
-    expect(within(screen.getByTestId("to-book-stays")).getByRole("button", { name: "Stays: booked. Change" })).toBeTruthy();
-    expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
+    expect(within(screen.getByTestId("to-book-stays")).getByRole("checkbox", { name: /^Stays: booked./ })).toBeTruthy();
+    expect(screen.queryAllByRole("checkbox")).toHaveLength(3);
     expect(screen.queryByRole("button", { name: /options/ })).toBeNull();
     const all = screen.getByTestId("to-book").textContent!;
     for (const gone of ["↗", "⋯", "To book", "Uploaded", "No documents yet"]) expect(all).not.toContain(gone);
@@ -100,16 +100,45 @@ describe("Bookings: three rows, one mark each", () => {
     expect(screen.getByRole("button", { name: "Upload a booking" })).toBeTruthy();
     // No Other files when there are none.
     expect(screen.queryByText(/Other files/)).toBeNull();
-    // The count: three rows, the button, the link — and nothing else to tap.
-    expect(within(screen.getByTestId("to-book")).getAllByRole("button").length + within(screen.getByTestId("to-book")).getAllByRole("link").length).toBe(3 + 3 + 1 + 1);
+    // The count: three marks, three rows, the button, the link — and nothing else to tap.
+    const box = within(screen.getByTestId("to-book"));
+    expect(box.getAllByRole("checkbox").length + box.getAllByRole("button").length + box.getAllByRole("link").length).toBe(3 + 3 + 1 + 1);
+    expect(screen.getByTestId("to-book-hint").textContent).toBe("Tap a circle to tick it");
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("the circle is a checkbox (28 Nov 2026): a tap ticks with Undo and asks nothing; a tap again unticks", async () => {
+    journey = J_("Tuscany");
+    render(<ToBookSection tripId="tuscany-tick" />);
+    const flights = await screen.findByTestId("to-book-flights");
+    await userEvent.click(within(flights).getByRole("checkbox", { name: /^Flights: still to book./ }));
+    expect(queuedUpdate).toHaveBeenLastCalledWith("trips", { id: journey.id }, { booking_checklist: { flights: "booked" } });
+    await waitFor(() => expect(screen.getByTestId("to-book-flights").dataset.state).toBe("booked"));
+    expect(toast).toHaveBeenLastCalledWith(expect.objectContaining({ message: "Flights: booked", undo: expect.any(Function) }));
+    expect(screen.queryByTestId("to-book-cost")).toBeNull();
+    expect(screen.queryByRole("menu")).toBeNull();
+    await userEvent.click(within(screen.getByTestId("to-book-flights")).getByRole("checkbox", { name: /^Flights: booked./ }));
+    expect(queuedUpdate).toHaveBeenLastCalledWith("trips", { id: journey.id }, { booking_checklist: {} });
+    await waitFor(() => expect(screen.getByTestId("to-book-flights").dataset.state).toBe("open"));
+  });
+
+  it("unticking a row its Booked cards tick saves Not booked yet; ticking it again clears that", async () => {
+    journey = J_("Tuscany");
+    render(<ToBookSection tripId="tuscany-untick" />);
+    const stays = await screen.findByTestId("to-book-stays");
+    await userEvent.click(within(stays).getByRole("checkbox", { name: /^Stays: booked./ }));
+    expect(queuedUpdate).toHaveBeenLastCalledWith("trips", { id: journey.id }, { booking_checklist: { stays: "open" } });
+    await waitFor(() => expect(screen.getByTestId("to-book-stays").dataset.state).toBe("open"));
+    expect(toast).toHaveBeenLastCalledWith(expect.objectContaining({ message: "Stays: not booked" }));
+    await userEvent.click(within(screen.getByTestId("to-book-stays")).getByRole("checkbox", { name: /^Stays: still to book./ }));
+    expect(queuedUpdate).toHaveBeenLastCalledWith("trips", { id: journey.id }, { booking_checklist: {} });
   });
 
   it("the mark opens Booked / Not needed; Not needed saves, dashes the row, and offers Undo", async () => {
     journey = J_("Tuscany");
     render(<ToBookSection tripId="tuscany-b" />);
     const car = await screen.findByTestId("to-book-car");
-    await userEvent.click(within(car).getByRole("button", { name: "Car: still to book. Change" }));
+    fireEvent.contextMenu(within(car).getByRole("checkbox", { name: /^Car: still to book./ }));
     const menu = within(car).getByRole("menu");
     expect(within(menu).getAllByRole("menuitem").map((b) => b.textContent)).toEqual(["Booked", "Not needed"]);
     await userEvent.click(within(menu).getByRole("menuitem", { name: "Not needed" }));
@@ -137,7 +166,7 @@ describe("Bookings: three rows, one mark each", () => {
     queuedUpdate.mockResolvedValueOnce({ queued: false, error: { message: "no" } });
     render(<ToBookSection tripId="tuscany-c" />);
     const flights = await screen.findByTestId("to-book-flights");
-    await userEvent.click(within(flights).getByRole("button", { name: /^Flights: / }));
+    fireEvent.contextMenu(within(flights).getByRole("checkbox", { name: /^Flights: / }));
     await userEvent.click(within(flights).getByRole("menuitem", { name: "Booked" }));
     await waitFor(() => expect(toast).toHaveBeenCalledWith({ message: "Couldn't save that. Try again." }));
     expect(screen.getByTestId("to-book-flights").dataset.state).toBe("open");
@@ -210,7 +239,7 @@ describe("uploads inside their row", () => {
     const flights = await screen.findByTestId("to-book-flights");
     await waitFor(() => expect(flights.dataset.state).toBe("booked"));
     expect(rowOf("flights").textContent).toBe("FlightsAir Canada · confirmation›");
-    await userEvent.click(within(flights).getByRole("button", { name: "Flights: booked. Change" }));
+    fireEvent.contextMenu(within(flights).getByRole("checkbox", { name: /^Flights: booked./ }));
     await userEvent.click(within(flights).getByRole("menuitem", { name: "Remove the upload" }));
     expect(remove).toHaveBeenCalledWith("doc-1");
   });
@@ -303,7 +332,7 @@ describe("Book N on Kayak, and Stays opening Where to stay", () => {
     const stays = await screen.findByTestId("to-book-stays");
     await userEvent.click(rowOf("stays"));
     expect(onOpenFile).toHaveBeenCalledWith(villa);
-    await userEvent.click(within(stays).getByRole("button", { name: "Stays: booked. Change" }));
+    fireEvent.contextMenu(within(stays).getByRole("checkbox", { name: /^Stays: booked./ }));
     expect(within(stays).getAllByRole("menuitem").map((b) => b.textContent)).toEqual(["Booked", "Not needed", "Not booked yet", "Where to stay"]);
     await userEvent.click(within(stays).getByRole("menuitem", { name: "Where to stay" }));
     expect(push).toHaveBeenCalledWith("/trips/tuscany-m/map?stays=1");
@@ -344,7 +373,7 @@ describe("What did it cost?", () => {
     journey = J_("Tuscany");
     render(<ToBookSection tripId="tuscany-k" />);
     const car = await screen.findByTestId("to-book-car");
-    await userEvent.click(within(car).getByRole("button", { name: /^Car: / }));
+    fireEvent.contextMenu(within(car).getByRole("checkbox", { name: /^Car: / }));
     await userEvent.click(within(car).getByRole("menuitem", { name: "Booked" }));
     expect(queuedUpdate).toHaveBeenLastCalledWith("trips", { id: journey.id }, { booking_checklist: { car: "booked" } });
     const form = await screen.findByTestId("to-book-cost");
@@ -363,7 +392,7 @@ describe("What did it cost?", () => {
     await waitFor(() => expect(rowOf("car").textContent).toBe("CarPaid €1,450›"));
     expect(toast).toHaveBeenLastCalledWith(expect.objectContaining({ message: "Car: €1,450", undo: expect.any(Function) }));
     // The mark is now the green ✓, and the menu offers the cost again.
-    await userEvent.click(within(screen.getByTestId("to-book-car")).getByRole("button", { name: "Car: booked. Change" }));
+    fireEvent.contextMenu(within(screen.getByTestId("to-book-car")).getByRole("checkbox", { name: /^Car: booked./ }));
     expect(within(screen.getByRole("menu")).getAllByRole("menuitem").map((b) => b.textContent)).toEqual(["Booked", "Not needed", "What did it cost?", "Clear"]);
   });
 
@@ -373,7 +402,7 @@ describe("What did it cost?", () => {
     render(<ToBookSection tripId="tuscany-us" />);
     await waitFor(() => expect(rowOf("car").getAttribute("href")).toBe("https://www.kayak.com/cars/PSA/2027-08-24-14h/2027-09-04-10h?sort=rank_a&fs=carcapacity=pas_7_X"));
     const car = screen.getByTestId("to-book-car");
-    await userEvent.click(within(car).getByRole("button", { name: /^Car: / }));
+    fireEvent.contextMenu(within(car).getByRole("checkbox", { name: /^Car: / }));
     await userEvent.click(within(car).getByRole("menuitem", { name: "Booked" }));
     const form = await screen.findByTestId("to-book-cost");
     expect((within(form).getByLabelText("Currency") as HTMLSelectElement).value).toBe("USD");
@@ -385,7 +414,7 @@ describe("What did it cost?", () => {
     render(<ToBookSection tripId="tuscany-uk" />);
     await waitFor(() => expect(rowOf("flights").getAttribute("href")).toContain("https://www.kayak.co.uk/flights/YYZ-PSA,FLR/"));
     const car = screen.getByTestId("to-book-car");
-    await userEvent.click(within(car).getByRole("button", { name: /^Car: / }));
+    fireEvent.contextMenu(within(car).getByRole("checkbox", { name: /^Car: / }));
     await userEvent.click(within(car).getByRole("menuitem", { name: "Booked" }));
     expect((within(await screen.findByTestId("to-book-cost")).getByLabelText("Currency") as HTMLSelectElement).value).toBe("GBP");
   });
@@ -394,7 +423,7 @@ describe("What did it cost?", () => {
     journey = J_("Tuscany");
     render(<ToBookSection tripId="tuscany-l" />);
     const car = await screen.findByTestId("to-book-car");
-    await userEvent.click(within(car).getByRole("button", { name: /^Car: / }));
+    fireEvent.contextMenu(within(car).getByRole("checkbox", { name: /^Car: / }));
     await userEvent.click(within(car).getByRole("menuitem", { name: "Booked" }));
     await userEvent.click(within(await screen.findByTestId("to-book-cost")).getByRole("button", { name: "Not now" }));
     expect(screen.queryByTestId("to-book-cost")).toBeNull();
@@ -409,7 +438,7 @@ describe("Not booked yet (6 Oct 2026: it didn't let me clear my stays)", () => {
     render(<ToBookSection tripId="tuscany-q" />);
     const stays = await screen.findByTestId("to-book-stays");
     expect(stays.dataset.state).toBe("booked");
-    await userEvent.click(within(stays).getByRole("button", { name: /^Stays: booked/ }));
+    fireEvent.contextMenu(within(stays).getByRole("checkbox", { name: /^Stays: booked/ }));
     await userEvent.click(within(stays).getByRole("menuitem", { name: "Not booked yet" }));
     await waitFor(() => expect(screen.getByTestId("to-book-stays").dataset.state).toBe("open"));
   });

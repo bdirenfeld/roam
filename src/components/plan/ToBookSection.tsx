@@ -125,6 +125,10 @@ export default function ToBookSection({ tripId, onLeave, files = [], onOpenFile,
   const [data, setData] = useState<Loaded | null>(null);
   const [airports, setAirports] = useState<string[] | null>(airportsAsked.get(tripId) ?? null);
   const [menu, setMenu] = useState<RowKey | null>(null);
+  // The circle is a checkbox (28 Nov 2026, mock approved): a tap ticks or unticks; a long press
+  // (or a right click) opens the rest — Not needed, what it cost, the confirmation.
+  const pressTimer = useRef<number | null>(null);
+  const longPressed = useRef(false);
   // A row with several files unfolds them under it.
   const [unfolded, setUnfolded] = useState<RowKey | null>(null);
   const [showOther, setShowOther] = useState(false);
@@ -236,17 +240,18 @@ export default function ToBookSection({ tripId, onLeave, files = [], onOpenFile,
     return true;
   }, [data, save, toast]);
 
-  const choose = useCallback(async (key: RowKey, choice: Choice | null, title: string) => {
+  const choose = useCallback(async (key: RowKey, choice: Choice | null, title: string, opts: { message?: string; askCost?: boolean } = {}) => {
     setMenu(null);
     forget(key);
     if (!data) return;
     const raw = data.trip.booking_checklist ?? {};
     const ok = await write(
       storeChecklist(withChoice(readChecklist(raw), key, choice), readCosts(raw)),
-      choice === "booked" ? `${title}: booked` : choice === "skip" ? `${title}: not needed` : choice === "open" ? `${title}: not booked yet` : `${title}: cleared`,
+      opts.message ?? (choice === "booked" ? `${title}: booked` : choice === "skip" ? `${title}: not needed` : choice === "open" ? `${title}: not booked yet` : `${title}: cleared`),
     );
-    // Booked by hand: what did it cost? Optional — the budget counts it if given.
-    if (ok && choice === "booked") { setCostFor(key); setAmount(""); setCurrency(data.currency); }
+    // Booked by hand from the menu: what did it cost? Optional — the budget counts it if given.
+    // A tick on the circle does not ask (it would open the phone's keyboard on every tick).
+    if (ok && choice === "booked" && opts.askCost !== false) { setCostFor(key); setAmount(""); setCurrency(data.currency); }
     else setCostFor(null);
   }, [data, write, forget]);
 
@@ -291,6 +296,14 @@ export default function ToBookSection({ tripId, onLeave, files = [], onOpenFile,
     if (t.kind === "day") { onLeave?.(); router.push(`/trips/${tripId}/days/${t.dayId}`); return; }
     setMenu(r.key);
   };
+
+  /** One tap on the circle: ticked becomes unticked, anything else becomes ticked. Where the cards
+   *  already tick the row, unticking saves "Not booked yet" and ticking just clears that. */
+  const tick = (r: CheckRow) => {
+    if (r.state === "booked") void choose(r.key, r.auto === "booked" ? "open" : null, r.title, { message: `${r.title}: not booked`, askCost: false });
+    else void choose(r.key, r.auto === "booked" ? null : "booked", r.title, { message: `${r.title}: booked`, askCost: false });
+  };
+  const endPress = () => { if (pressTimer.current) { window.clearTimeout(pressTimer.current); pressTimer.current = null; } };
 
   const item = "text-left px-4 py-[11px]";
   return (
@@ -361,11 +374,18 @@ export default function ToBookSection({ tripId, onLeave, files = [], onOpenFile,
             <div className="relative flex items-center" data-testid={`to-book-${r.key}`} data-state={r.state}>
               <button
                 type="button"
-                onClick={() => setMenu(menu === r.key ? null : r.key)}
-                aria-label={`${r.title}: ${STATE_WORDS[r.state]}. Change`}
-                aria-haspopup="menu"
-                aria-expanded={menu === r.key}
-                className="-ml-[10px] w-11 h-11 grid place-items-center flex-shrink-0"
+                data-testid={`to-book-${r.key}-tick`}
+                onPointerDown={() => { longPressed.current = false; endPress(); pressTimer.current = window.setTimeout(() => { longPressed.current = true; setMenu(r.key); }, 500); }}
+                onPointerUp={endPress}
+                onPointerLeave={endPress}
+                onPointerCancel={endPress}
+                onContextMenu={(e) => { e.preventDefault(); endPress(); longPressed.current = true; setMenu(r.key); }}
+                onClick={() => { if (longPressed.current) { longPressed.current = false; return; } tick(r); }}
+                role="checkbox"
+                aria-checked={r.state === "booked"}
+                aria-label={`${r.title}: ${STATE_WORDS[r.state]}. Tap to ${r.state === "booked" ? "untick" : "tick"}, hold for more`}
+                className="-ml-[10px] w-11 h-11 grid place-items-center flex-shrink-0 select-none"
+                style={{ WebkitTouchCallout: "none" }}
               >
                 <Mark state={r.state} />
               </button>
@@ -469,6 +489,10 @@ export default function ToBookSection({ tripId, onLeave, files = [], onOpenFile,
           </div>
         );
       })}
+      {/* How the circle works, while something is still to book (28 Nov 2026, mock approved). */}
+      {rows.some((r) => r.state === "open") && (
+        <p data-testid="to-book-hint" className="pt-3 text-center text-[12.5px]" style={{ color: CAPTION }}>Tap a circle to tick it</p>
+      )}
       {queue.length > 0 ? (
         <button
           type="button"
