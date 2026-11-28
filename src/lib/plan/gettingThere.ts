@@ -45,7 +45,7 @@ export const EARLIEST_LEAVE = 8 * 60;
 const DOOR_MIN = 10;
 
 type GLoc = { lat?: number; lng?: number };
-type GStep = { travel_mode?: string; duration?: { value?: number }; transit_details?: { line?: { short_name?: string; name?: string; vehicle?: { type?: string } }; departure_stop?: { name?: string }; arrival_stop?: { name?: string; location?: GLoc }; num_stops?: number; departure_time?: { value?: number } } };
+type GStep = { travel_mode?: string; duration?: { value?: number }; transit_details?: { line?: { short_name?: string; name?: string; vehicle?: { type?: string } }; departure_stop?: { name?: string; location?: GLoc }; arrival_stop?: { name?: string; location?: GLoc }; num_stops?: number; departure_time?: { value?: number } } };
 type GLeg = { duration?: { value?: number }; distance?: { value?: number }; steps?: GStep[]; departure_time?: { value?: number } };
 
 /**
@@ -59,10 +59,37 @@ export function trafficMinutes(json: unknown): number | null {
   return typeof v === "number" && v > 0 ? Math.round(v / 60) : null;
 }
 
-/** Google Directions JSON to a route, or null when there is none. */
+/** Faster than this between two stops is bad timetable data, not a ride (28 Nov 2026: Google's
+ *  "bus Lucca 8:35 → Pontedera 8:40", 40 km in 5 minutes). Road and rail, km/h. */
+const MAX_ROAD_KMH = 110;
+const MAX_RAIL_KMH = 250;
+
+function kmApart(a: GLoc, b: GLoc): number {
+  const R = 6371, rad = Math.PI / 180;
+  const dLat = (b.lat! - a.lat!) * rad, dLng = (b.lng! - a.lng!) * rad;
+  const s = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat! * rad) * Math.cos(b.lat! * rad) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(s));
+}
+
+/** A ride Google times faster than any bus or train could go between its two stops. */
+export function impossibleRide(s: GStep): boolean {
+  const t = s.transit_details;
+  const a = t?.departure_stop?.location, b = t?.arrival_stop?.location;
+  const secs = s.duration?.value ?? 0;
+  if (s.travel_mode !== "TRANSIT" || !a || !b || typeof a.lat !== "number" || typeof a.lng !== "number" || typeof b.lat !== "number" || typeof b.lng !== "number") return false;
+  const km = kmApart(a, b);
+  if (km < 3) return false;
+  const kmh = km / Math.max(secs, 30) * 3600;
+  const road = /BUS|TROLLEY|SHARE_TAXI/.test(t?.line?.vehicle?.type ?? "");
+  return kmh > (road ? MAX_ROAD_KMH : MAX_RAIL_KMH);
+}
+
+/** Google Directions JSON to a route, or null when there is none. With alternatives asked for,
+ *  the first route with no impossible ride (impossibleRide) wins. */
 export function routeFrom(json: unknown): Route | null {
   const j = json as { status?: string; routes?: { legs?: GLeg[] }[] } | null;
-  const leg = j?.status === "OK" ? j.routes?.[0]?.legs?.[0] : undefined;
+  const legs = j?.status === "OK" ? (j.routes ?? []).map((r) => r.legs?.[0]).filter((l): l is GLeg => !!l) : [];
+  const leg = legs.find((l) => !(l.steps ?? []).some(impossibleRide));
   if (!leg?.duration?.value) return null;
   const steps: RouteStep[] = (leg.steps ?? []).map((s) => {
     const m = Math.round((s.duration?.value ?? 0) / 60);

@@ -66,7 +66,7 @@ import { isPortCard, nightsInPort, nightsPatch, addIsoDays } from "@/lib/cards/p
 import { withDetails } from "@/lib/cardDetails";
 import { UNTITLED_NOTE, cardTitle, deletedToast } from "@/lib/cardTitle";
 import TravelLegPanel, { LegRoute, LegEstimateRow, LegParkRow, LegWaysRow, useDefaultFrom } from "./TravelLegPanel";
-import { readLegs, runLegs, currentWay, waysLabel, type Way } from "@/lib/travel/ways";
+import { readLegs, runLegs, currentWay, waysLabel, cardModeOf, type Way } from "@/lib/travel/ways";
 import RouteEditor, { useRouteCards } from "./RouteEditor";
 import { travelEnd } from "./travelEnd";
 import { getAuthUser } from "@/lib/supabase/authUser";
@@ -825,8 +825,7 @@ export default function CardBottomSheet({ card, onClose, onCardUpdate, onCardDel
   const applyWay = useCallback(async (way: Way) => {
     const prev = localCard;
     const details = { ...(localCard.details as Record<string, unknown>) } as Record<string, unknown>;
-    const ridden = way.legs.find((l) => l.mode !== "walk")?.mode ?? "drive";
-    details.mode = ridden === "walk" ? "drive" : ridden;
+    details.mode = cardModeOf(way.legs);
     details.way = way.kind;
     delete details.mode_label;
     if (way.legs.length > 1) { details.legs = way.legs; delete details.park; } else delete details.legs;

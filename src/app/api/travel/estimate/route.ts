@@ -38,9 +38,9 @@ export async function POST(req: NextRequest) {
   let admin: ReturnType<typeof createAdminClient> | null = null;
   try { admin = createAdminClient(); } catch { admin = null; }
 
-  // v2: transit answers now carry each ride's timetabled time (lib/travel/ways).
+  // v3: transit answers carry each ride's timetabled time and Google's alternatives (lib/travel/ways).
   const route = async (mode: "driving" | "transit", a: Pt = from, b: Pt = to): Promise<Route | null> => {
-    const k = `route|${mode}|${a.lat.toFixed(3)},${a.lng.toFixed(3)}|${b.lat.toFixed(3)},${b.lng.toFixed(3)}|${mode === "transit" ? `${wd}-${hour}|v2` : ""}`;
+    const k = `route|${mode}|${a.lat.toFixed(3)},${a.lng.toFixed(3)}|${b.lat.toFixed(3)},${b.lng.toFixed(3)}|${mode === "transit" ? `${wd}-${hour}|v3` : ""}`;
     if (admin) {
       const { data } = await admin.from("find_cache").select("results, created_at").eq("key", k).maybeSingle();
       if (data && Date.now() - Date.parse(data.created_at as string) < MONTH) return (data.results as { route: Route | null }).route;
@@ -55,6 +55,8 @@ export async function POST(req: NextRequest) {
       const now = new Date();
       const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + ((wd - now.getUTCDay() + 7) % 7 || 7), hour - Math.round(b.lng / 15)));
       u.searchParams.set("departure_time", String(Math.floor(d.getTime() / 1000)));
+      // Google's other routes, so one with bad timetable data can be passed over (routeFrom).
+      u.searchParams.set("alternatives", "true");
     }
     u.searchParams.set("key", key);
     try {

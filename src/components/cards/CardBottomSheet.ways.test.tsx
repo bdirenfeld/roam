@@ -110,4 +110,12 @@ describe("one travel card holds every leg (28 Nov 2026)", () => {
     expect(p.details.legs).toBeUndefined();
     expect([p.details.way, p.end_time]).toEqual(["drive", "09:05:00"]);
   });
+  it("a train reads Train, not Google's category code; a bus keeps its number", async () => {
+    const legs = [{ mode: "bus", from: villa, to: lucca, at: 0, mins: 22, line: "53" }, { mode: "train", from: lucca, to: smn, at: 30, mins: 81, line: "REG" }];
+    const one = { ...drive, place: train.place, place_id: "p-train", details: { mode: "bus", way: "transit", from: villa, legs } } as unknown as Card;
+    await act(async () => { render(<CardBottomSheet card={one} onClose={() => {}} days={days} />); });
+    const text = screen.getAllByTestId("leg-way-line").map((l) => l.textContent).join(" ");
+    expect(text).toContain("Bus 53");
+    expect(text).not.toContain("REG");
+  });
 });

@@ -101,3 +101,31 @@ describe("the ways to make a trip (28 Nov 2026, mock approved)", () => {
     expect(transitLegs(r, villa, smn).map((l) => [l.mode, l.at])).toEqual([["bus", 0], ["walk", 20], ["train", 28]]);
   });
 });
+
+describe("Google's bad timetable data is passed over (28 Nov 2026, live check)", () => {
+  // What Google sent for Lucca station → Florence on a Saturday at 8: a "bus" Lucca 8:35 → Pontedera
+  // 8:40 (22 km in five minutes), then the train. Its alternative is the direct regional.
+  const stop = (name: string, lat: number, lng: number) => ({ name, location: { lat, lng } });
+  const bogus = { travel_mode: "TRANSIT", duration: { value: 300 }, transit_details: { line: { vehicle: { type: "BUS" } }, departure_stop: stop("Lucca Viale Regina Margherita", 43.839, 10.503), arrival_stop: stop("Pontedera", 43.663, 10.634), departure_time: { value: T0 } } };
+  const onward = { travel_mode: "TRANSIT", duration: { value: 2760 }, transit_details: { line: { vehicle: { type: "HEAVY_RAIL" } }, departure_stop: stop("Pontedera - Casciana T.", 43.664, 10.633), arrival_stop: stop("Firenze S.M.N.", 43.776, 11.248), departure_time: { value: T0 + 720 } } };
+  const direct = { travel_mode: "TRANSIT", duration: { value: 5100 }, transit_details: { line: { vehicle: { type: "HEAVY_RAIL" } }, departure_stop: stop("Lucca", 43.837, 10.506), arrival_stop: stop("Firenze S.M.N.", 43.776, 11.248), departure_time: { value: T0 } } };
+  const json = { status: "OK", routes: [
+    { legs: [{ duration: { value: 3700 }, distance: { value: 80000 }, steps: [bogus, onward], departure_time: { value: T0 } }] },
+    { legs: [{ duration: { value: 5160 }, distance: { value: 80000 }, steps: [direct], departure_time: { value: T0 } }] },
+  ] };
+  it("the route with an impossible ride loses to Google's alternative", () => {
+    const r = routeFrom(json)!;
+    expect(r.minutes).toBe(86);
+    expect(r.steps.map((s) => s.vehicle)).toEqual(["HEAVY_RAIL"]);
+  });
+  it("no sane route at all: no route", () => {
+    expect(routeFrom({ status: "OK", routes: [json.routes[0]] })).toBeNull();
+  });
+  it("a tram is a tram, a metro a metro; the card's own mode stays one it knows", async () => {
+    const { cardModeOf, wayWord } = await import("./ways");
+    expect([vehicleMode("TRAM"), vehicleMode("SUBWAY")]).toEqual(["tram", "metro"]);
+    expect(wayWord("tram")).toBe("Tram");
+    expect(cardModeOf([{ mode: "walk" }, { mode: "tram" }])).toBe("train");
+    expect(cardModeOf([{ mode: "drive" }, { mode: "train" }])).toBe("drive");
+  });
+});

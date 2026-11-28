@@ -17,7 +17,7 @@
  */
 import type { Route, RouteStep } from "@/lib/plan/gettingThere";
 
-export type WayMode = "drive" | "bus" | "train" | "ferry" | "walk";
+export type WayMode = "drive" | "bus" | "train" | "tram" | "metro" | "ferry" | "walk";
 export interface WayStop { title: string; lat?: number; lng?: number }
 export interface WayLeg { mode: WayMode; from: WayStop; to: WayStop; at: number; mins: number; line?: string }
 export interface Way {
@@ -41,6 +41,8 @@ export function vehicleMode(v: string | undefined): WayMode {
   if (!v) return "train";
   if (/BUS/.test(v)) return "bus";
   if (v === "FERRY") return "ferry";
+  if (v === "TRAM" || v === "LIGHT_RAIL" || v === "MONORAIL" || v === "CABLE_CAR") return "tram";
+  if (v === "SUBWAY" || v === "METRO_RAIL") return "metro";
   return "train";
 }
 
@@ -110,7 +112,15 @@ export function offerWays(drive: Way | null, transit: Way | null, mix: Way | nul
   return out;
 }
 
-const MODE_WORD: Record<WayMode, string> = { drive: "Drive", bus: "Bus", train: "Train", ferry: "Ferry", walk: "Walk" };
+const MODE_WORD: Record<WayMode, string> = { drive: "Drive", bus: "Bus", train: "Train", tram: "Tram", metro: "Metro", ferry: "Ferry", walk: "Walk" };
+/** The Material glyph per mode (each is in lib/mapPins' font list). */
+export const WAY_GLYPH: Record<WayMode, string> = { drive: "directions_car", bus: "directions_bus", train: "train", tram: "tram", metro: "subway", ferry: "directions_boat", walk: "directions_walk" };
+export const wayWord = (m: string) => MODE_WORD[m as WayMode] ?? "Travel";
+/** The card's own mode (lib/travel/leg: drive, bus, train, ferry) for a way's first ride. */
+export function cardModeOf(legs: { mode: string }[]): "drive" | "bus" | "train" | "ferry" {
+  const m = legs.find((l) => l.mode !== "walk")?.mode;
+  return m === "drive" || m === "bus" || m === "ferry" ? m : m ? "train" : "drive";
+}
 
 /** "Drive + train", "Bus + train": the ridden modes in order, walks left out. */
 export function waysLabel(legs: { mode: string }[]): string {
@@ -159,7 +169,7 @@ export function runLegs(cards: { start_time: string | null; end_time: string | n
     const d = (c.details ?? {}) as { mode?: string; from?: { title?: string; lat?: number; lng?: number } };
     const at = toMin(c.start_time) - toMin(first);
     const mins = c.end_time ? Math.max(0, toMin(c.end_time) - toMin(c.start_time)) : 0;
-    const mode = (["drive", "bus", "train", "ferry", "walk"].includes(d.mode ?? "") ? d.mode : "drive") as WayMode;
+    const mode = (["drive", "bus", "train", "tram", "metro", "ferry", "walk"].includes(d.mode ?? "") ? d.mode : "drive") as WayMode;
     const p = c.place;
     legs.push({
       mode, at, mins,

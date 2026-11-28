@@ -15,7 +15,7 @@ import {
   LEG_MODES, defaultFromForDay, formatLegDuration,
   type LegDay, type LegFrom, type LegMode,
 } from "@/lib/travel/leg";
-import { clockAt, type Way, type WayLeg } from "@/lib/travel/ways";
+import { clockAt, WAY_GLYPH, wayWord, type Way, type WayLeg, type WayMode } from "@/lib/travel/ways";
 import { formatTimeValue } from "@/lib/formatTime";
 
 const INK = "#1A1A2E";
@@ -480,8 +480,8 @@ export function LegRoute({
             const prev = legs[i - 1];
             const wait = prev ? l.at - (prev.at + prev.mins) : 0;
             const last = i === legs.length - 1;
-            const word = l.mode === "drive" ? "Drive" : l.mode === "bus" ? "Bus" : l.mode === "ferry" ? "Ferry" : l.mode === "walk" ? "Walk" : "Train";
-            const glyph = l.mode === "drive" ? "directions_car" : l.mode === "bus" ? "directions_bus" : l.mode === "ferry" ? "directions_boat" : l.mode === "walk" ? "directions_walk" : "train";
+            const word = wayWord(l.mode);
+            const glyph = WAY_GLYPH[l.mode as WayMode] ?? "train";
             return (
               <div key={i}>
                 <div className="flex gap-3.5 min-h-[30px]" data-testid="leg-way-line">
@@ -489,7 +489,7 @@ export function LegRoute({
                   <span className="flex flex-wrap items-center gap-x-1 pt-[3px] pb-1.5 text-[13.5px]" style={{ color: CAP }}>
                     {wait >= 5 && <span className="w-full text-[12px]" style={{ color: "rgba(26,26,46,0.45)" }}>{formatLegDuration(wait)} to change</span>}
                     <span className="inline-flex items-center gap-1 font-semibold" style={{ color: INK }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: 14, fontVariationSettings: "'FILL' 1" }} aria-hidden="true">{glyph}</span>{word}{l.line && l.mode !== "drive" && l.mode !== "walk" ? ` ${l.line}` : ""}
+                      <span className="material-symbols-outlined" style={{ fontSize: 14, fontVariationSettings: "'FILL' 1" }} aria-hidden="true">{glyph}</span>{word}{l.line && (l.mode === "bus" || l.mode === "tram" || l.mode === "metro") ? ` ${l.line}` : ""}
                     </span>
                     {start && l.mode !== "walk" && <span>· {formatTimeValue(clockAt(start, l.at))} – {formatTimeValue(clockAt(start, l.at + l.mins))}</span>}
                     <span>· {formatLegDuration(Math.max(1, l.mins))}</span>
@@ -624,7 +624,7 @@ export function LegWaysRow({ ways, current, readOnly = false, onUse }: {
   onUse: (way: Way) => void;
 }) {
   if (!ways.length) return null;
-  const glyph = (m: string) => (m === "drive" ? "directions_car" : m === "bus" ? "directions_bus" : m === "ferry" ? "directions_boat" : "train");
+  const glyph = (m: string) => WAY_GLYPH[m as WayMode] ?? "train";
   return (
     <div className="flex flex-wrap items-center gap-2 pt-2" data-testid="leg-ways">
       {ways.map((w) => {
